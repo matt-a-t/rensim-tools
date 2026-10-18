@@ -1,0 +1,49 @@
+{
+ "source": {
+  "source_id": "pub:test_gazette:1",
+  "file": "player_publications/test_gazette.pdf",
+  "kind": "player_newsletter",
+  "title": "The Test Gazette No. 1",
+  "publisher": "Test Publisher",
+  "publisher_family": "OSTRANDER",
+  "game_date": "1547-03",
+  "real_date": "2026-10-01"
+ },
+ "claims": [
+  {
+   "id": "c1",
+   "type": "office",
+   "subject": {
+    "name": "Edgar Ostrander",
+    "given": "Edgar",
+    "family": "OSTRANDER"
+   },
+   "predicate": "holds_office",
+   "object": "Magistrate of Kelso",
+   "place": "Kelso",
+   "hedge": "reported",
+   "quote": "Lord Edgar Ostrander now holds the Magistracy of Kelso"
+  },
+  {
+   "id": "c2",
+   "type": "location_report",
+   "subject": {
+    "place": "Kelso"
+   },
+   "predicate": "market",
+   "object": "wool supplied at 40",
+   "place": "Kelso",
+   "hedge": "reported",
+   "quote": "the market at Kelso sells wool for 40 ducats",
+   "data": {
+    "supplies": [
+     {
+      "item": "wool",
+      "bq": 1.0,
+      "price": 40
+     }
+    ]
+   }
+  }
+ ]
+}

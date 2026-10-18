@@ -1,0 +1,10 @@
+{
+  "name": "renaissance-turn",
+  "version": "0.1.0",
+  "description": "Plan and write a Renaissance turn with Claude: plain-English plan first, then checked order codes to email the GM.",
+  "author": {
+    "name": "matt-a-t"
+  },
+  "repository": "https://github.com/matt-a-t/rensim-tools",
+  "license": "MIT"
+}

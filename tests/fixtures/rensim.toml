@@ -1,0 +1,9 @@
+# Settings for the test fixtures: a made-up account. Your own rensim.toml lives in your data folder.
+account = "TST"
+family = "VERNON"
+home = "Carlisle"
+data_dir = "data"
+orders_dir = "orders"
+
+[quality]
+known_gaps = [{ account = "TST", from = "1546-07", to = "1546-12", why = "made-up gap for the tests" }]

@@ -1,0 +1,64 @@
+ACCOUNT CODE: TST January 31, 1547 / August 1, 2026
+ACTIONS= VERNON:  10
+                  NET PRIOR BALANCE:   50.00
+                  PAYMENTS RECEIVED:    0.00
+                  TOTAL ACTION FEES:    5.000
+                  BASIC MONTHLY FEES:    4.40
+
+                 YOU HAVE A CREDIT OF $  45.60
+
+Test Player    Vernon
+1 Example Street, Nowhere (a made-up address the parser must drop)
+
+Copyright notice: this is a made-up turn report for tests.
+
+ Alan( 101)VERNON, , Catholic, Citizen of Carlisle
+   MORALE:900   POPULARITY: 210   LOCATION:Carlisle
+SKILLS - letters:  60 merchantry: 30 assassination:300 fortification: 0 . ALLIES - Vernon
+ASSETS - ducats:   , 20,000; auxiliaries:      1
+
+Brian( 102)VERNON, , Catholic, Citizen of Carlisle
+   MORALE:950   POPULARITY: 200   LOCATION:Carlisle
+SKILLS - architecture:500 assassination:900 fortification:400 cannonmaking:  28 . ALLIES - Vernon
+ASSETS - ducats:   ,300,000; auxiliaries:      1
+
+Colin( 103)VERNON, , Catholic, Citizen of Carlisle
+   MORALE:600   POPULARITY: 400   LOCATION:Carlisle
+SKILLS - assassination:100 cannonmaking: 800 . ALLIES - Vernon
+ASSETS - ducats:   ,200,000; auxiliaries:      0; bows:   ,600
+
+Donald( 104)VERNON, , Catholic, Citizen of Carlisle
+ MAGISTRATE of Carlisle   MORALE:500   POPULARITY: 999   LOCATION:Carlisle
+SKILLS - assassination:400 fortification:100 cannonmaking:  28 . ALLIES - Vernon
+ASSETS - ducats:   ,250,000
+**************************************************************
+Carlisle (N54.54,W2.56)     FAS: 800    FAR: 40   GARRISON:    3  RECRUITS: 1000
+IMPORT TARIFF: 0%    EXPORT TARIFF: 0%  EXTERNAL MARKET IS CLOSED TO ALL WHO LACK INGRESS
+INGRESS IS HELD ONLY BY: Vernon Testfamily
+POPULATION:    100   PORT DEPTH:  0   WEALTH: 120   LOYALTY:    900
+
+SOVEREIGN     KING            of ENGLAND                 TOWER:   0
+FEUDATORY     the magistrate                             TOWER: 800
+MAGISTRATE(e) Donald       VERNON                        TOWER:   0
+
+ROADS: none
+
+   BQ       ITEMS DEMANDED    PRICE   QUANTITY DEMANDED
+-------- -------------------- ----- ---------------------
+4.00     FOOD                   950           400
+1.00     METALS                3000           100
+
+
+    BQ   ITEMS SUPPLIED PRICE QUANTITY AVAILABLE
+-------- -------------- ----- ------------------
+ 4.50000 horse             1           450
+
+
+*** PERSONAE INSIDE:   Alan( 101)VERNON  ,   ,  1 T.; Brian( 102)VERNON  ,   ,  1 T.; Colin( 103)VERNON; Donald( 104)VERNON; Other( 900)TESTFAMILY  ,   ,500 T.;
+*** PERSONAE OUTSIDE:
+*****************************************************************
+VERNON         Kelso          is at N55.32 , W2.28
+VERNON         Edinburgh      is at N55.57 , W3.10
+VERNON         NOWHERESVILLE is not a set up location.
+Vernon         When coding orders, please omit initial zeroes.
+

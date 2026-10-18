@@ -1,0 +1,7 @@
+# April 1547 (made-up orders for the tests). Brian trains Alan, then everyone but Donald moves.
+# Donald stays home as magistrate and buys horses.
+/TST *VERNON
+*Carlisle .101 mlKelso*
+*Carlisle .102 i101k mlEdinburgh*
+*Carlisle .103 t104bows600 mlKelso*
+*Carlisle .104 bhorse450 n%Hawick

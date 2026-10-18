@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "rensim-tools",
+  "description": "Claude Code skills for players of Renaissance, the play-by-mail game.",
+  "owner": {
+    "name": "matt-a-t"
+  },
+  "plugins": [
+    {
+      "name": "renaissance-turn",
+      "description": "Plan and write a Renaissance turn with Claude: plain-English plan first, then checked order codes to email the GM.",
+      "source": "./plugins/renaissance-turn",
+      "category": "productivity"
+    }
+  ]
+}

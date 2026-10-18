@@ -1,0 +1,86 @@
+"""End to end on the made-up TST data: parse everything, load SQLite, answer every saved question,
+and pass the data quality checks. Plus the parser details a new player would trip over first."""
+import contextlib
+import io
+import tempfile
+import unittest
+from pathlib import Path
+
+from renaissance.ask import load_questions
+from renaissance.load import connect, load_sqlite
+from renaissance.parse_turn import parse_turn
+from renaissance.quality import run_checks
+from renaissance.run import parse_all
+from renaissance.settings import RAW
+
+
+class Pipeline(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        db = Path(cls.tmp.name) / "test.sqlite"
+        with contextlib.redirect_stdout(io.StringIO()):
+            cls.tables = parse_all()
+            load_sqlite(cls.tables, db)
+        cls.con = connect("sqlite", db)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.con.close()
+        cls.tmp.cleanup()
+
+    def test_every_question_runs(self):
+        for name, (_, sql) in load_questions().items():
+            with self.subTest(question=name):
+                self.con.execute(sql).fetchall()
+
+    def test_my_personae_now(self):
+        rows = self.con.execute("SELECT persona_id, given_name, location FROM v_personae_now ORDER BY persona_id").fetchall()
+        self.assertEqual([r[1] for r in rows], ["Alan", "Brian", "Colin", "Donald"])
+        self.assertEqual({r[2] for r in rows}, {"Carlisle"})
+
+    def test_orders_sent_are_loaded(self):
+        n = self.con.execute("SELECT COUNT(*) FROM orders_sent WHERE game_month = '1547-04'").fetchone()[0]
+        self.assertEqual(n, 7)
+
+    def test_quality_checks_pass(self):
+        self.assertEqual({k: v for k, v in run_checks(self.con).items() if v}, {})
+
+    def test_home_distances(self):
+        miles = dict(self.con.execute("SELECT name, miles_from_home FROM dim_places").fetchall())
+        self.assertEqual(miles["Carlisle"], 0)
+        self.assertGreater(miles["Kelso"], 40)
+
+
+class TurnParser(unittest.TestCase):
+    t = parse_turn(RAW / "turns" / "tst_1547-03.txt")
+
+    def test_billing_and_address_are_dropped(self):
+        text = repr(self.t)
+        self.assertNotIn("Example Street", text)
+        self.assertNotIn("CREDIT", text)
+
+    def test_header(self):
+        s = self.t["sources"][0]
+        self.assertEqual((s["account"], s["player_family"], s["game_date"], s["real_date"]),
+                         ("TST", "VERNON", "1547-03-31", "2026-10-01"))
+
+    def test_numbers_and_coordinates(self):
+        ducats = {a["persona_id"]: a["quantity"] for a in self.t["persona_assets"] if a["asset"] == "ducats"}
+        self.assertEqual(ducats[102], 300_000)
+        loc = self.t["location_status"][0]
+        self.assertEqual((loc["location"], loc["lat"], loc["lon"]), ("Carlisle", 54.9, -2.9333))
+
+    def test_lookups(self):
+        found = {l["place"]: l["is_set_up"] for l in self.t["lookups"]}
+        self.assertEqual(found, {"Kelso": True, "Edinburgh": True, "NOWHERESVILLE": False})
+
+    def test_magistrate_and_market(self):
+        donald = next(p for p in self.t["persona_status"] if p["persona_id"] == 104)
+        self.assertEqual(donald["office"], "MAGISTRATE of Carlisle")
+        horse = next(m for m in self.t["market"] if m["item"] == "horse")
+        self.assertEqual((horse["side"], horse["price"], horse["quantity"]), ("supply", 1, 450))
+
+
+if __name__ == "__main__":
+    unittest.main()

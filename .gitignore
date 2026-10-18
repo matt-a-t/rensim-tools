@@ -1,0 +1,14 @@
+# your game data never goes in this repo: keep it in its own folder (see README)
+/data/
+/orders/
+/rensim.toml
+# generated databases and dlt working state
+*.duckdb
+*.duckdb.wal
+*.sqlite
+.dlt_pipelines/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+.venv/
