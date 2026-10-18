@@ -1,0 +1,33 @@
+# On every push and pull request: the tests (made-up account in tests/fixtures), then every command
+# end to end on the fixtures, with DuckDB and SQLite giving the same answers.
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      RUNTIME__DLTHUB_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install .
+      - name: Tests
+        run: python -m unittest -v
+      - name: Every command on the fixtures
+        working-directory: tests/fixtures
+        run: |
+          rensim config
+          rensim run
+          rensim ask
+          rensim quality
+          rensim claims
+          rensim orders orders/tst_1547-04.txt
+          rensim training
+          rensim compare
