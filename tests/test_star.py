@@ -113,11 +113,11 @@ class StarSchema(unittest.TestCase):
     def test_place_officials(self):
         rows = self.con.execute("SELECT role, holder FROM dim_place_officials "
                                 "WHERE place_key = 'carlisle' AND is_current = 1 ORDER BY role").fetchall()
-        self.assertIn(("MAGISTRATE", "Donald VERNON"), rows)
+        self.assertIn(("MAGISTRATE", "Eddard STARK"), rows)
 
 
 class OfficeHistory(unittest.TestCase):
-    """Type 2 versioning on made-up history: Donald loses the magistracy in April and regains it
+    """Type 2 versioning on made-up history: Eddard loses the magistracy in April and regains it
     in May, which must be three versions (a value coming back is still a new version)."""
 
     def setUp(self):
@@ -128,7 +128,7 @@ class OfficeHistory(unittest.TestCase):
         self.con = connect("sqlite", db)
         for date, office in (("1547-04-30", None), ("1547-05-31", "MAGISTRATE of Carlisle")):
             self.con.execute("INSERT INTO turn_persona_status (source_id, game_date, account, player_family, "
-                             "persona_id, office) VALUES (?, ?, 'TST', 'VERNON', 104, ?)",
+                             "persona_id, office) VALUES (?, ?, 'TST', 'STARK', 104, ?)",
                              (f"turn:TST:{date}", date, office))
 
     def tearDown(self):
@@ -145,7 +145,7 @@ class OfficeHistory(unittest.TestCase):
         ])
 
     def test_fact_joins_the_version_in_force(self):
-        """A fact dated April joins version 2: Donald held no office that month."""
+        """A fact dated April joins version 2: Eddard held no office that month."""
         office = self.con.execute("""
             SELECT o.office FROM dim_persona_offices o
             WHERE o.persona_id = 104

@@ -51,7 +51,7 @@ Environment variables override the file: `RENSIM_ACCOUNT`, `RENSIM_FAMILY`, `REN
 3. Write your orders in `orders/<account>_YYYY-MM.txt`, with `#` lines explaining the plan:
 
    ```
-   # April 1547: Brian trains Alan, then scouts Edinburgh; Donald stays home as magistrate.
+   # April 1547: Jon trains Arya, then scouts Edinburgh; Eddard stays home as magistrate.
    /ABC *SMITH
    *Kelso .102 i101k mlEdinburgh*
    *Kelso .104 bhorse450

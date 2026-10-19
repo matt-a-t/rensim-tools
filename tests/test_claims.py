@@ -14,7 +14,7 @@ class Claims(unittest.TestCase):
 
     def test_a_misquote_is_caught(self):
         bad = copy.deepcopy(self.doc)
-        bad["claims"][0]["quote"] = "Lord Edgar Ostrander now holds the Kingdom of Scotland"
+        bad["claims"][0]["quote"] = "Lord Tyrion Lannister now holds the Kingdom of Scotland"
         self.assertEqual(len(check_quotes(bad)), 1)
 
     def test_bad_type_and_hedge_are_caught(self):
@@ -29,7 +29,7 @@ class Claims(unittest.TestCase):
         self.assertEqual(out["sources"][0]["reliability"], "player_claim")
 
     def test_aliases(self):
-        self.assertEqual(load_family_aliases(), {"OSTRANDERS": "OSTRANDER"})
+        self.assertEqual(load_family_aliases(), {"LANNISTERS": "LANNISTER"})
 
 
 if __name__ == "__main__":

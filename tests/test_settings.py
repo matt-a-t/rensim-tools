@@ -18,7 +18,7 @@ def env(**overrides):
 
 class Settings(unittest.TestCase):
     def test_tests_use_the_fixture_account(self):
-        self.assertEqual((settings.MY_ACCOUNT, settings.MY_FAMILY, settings.HOME), ("TST", "VERNON", "Carlisle"))
+        self.assertEqual((settings.MY_ACCOUNT, settings.MY_FAMILY, settings.HOME), ("TST", "STARK", "Carlisle"))
         self.assertEqual(settings.DATA, FIXTURES / "data")
         self.assertEqual(settings.ORDERS_DIR, FIXTURES / "orders")
 

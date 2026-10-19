@@ -4,8 +4,8 @@
   "file": "player_publications/test_gazette.pdf",
   "kind": "player_newsletter",
   "title": "The Test Gazette No. 1",
-  "publisher": "Test Publisher",
-  "publisher_family": "OSTRANDER",
+  "publisher": "Varys",
+  "publisher_family": "LANNISTER",
   "game_date": "1547-03",
   "real_date": "2026-10-01"
  },
@@ -14,15 +14,15 @@
    "id": "c1",
    "type": "office",
    "subject": {
-    "name": "Edgar Ostrander",
-    "given": "Edgar",
-    "family": "OSTRANDER"
+    "name": "Tyrion Lannister",
+    "given": "Tyrion",
+    "family": "LANNISTER"
    },
    "predicate": "holds_office",
    "object": "Magistrate of Kelso",
    "place": "Kelso",
    "hedge": "reported",
-   "quote": "Lord Edgar Ostrander now holds the Magistracy of Kelso"
+   "quote": "Lord Tyrion Lannister now holds the Magistracy of Kelso"
   },
   {
    "id": "c2",

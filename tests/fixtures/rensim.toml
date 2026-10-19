@@ -1,6 +1,6 @@
 # Settings for the test fixtures: a made-up account. Your own rensim.toml lives in your data folder.
 account = "TST"
-family = "VERNON"
+family = "STARK"
 home = "Carlisle"
 data_dir = "data"
 orders_dir = "orders"
