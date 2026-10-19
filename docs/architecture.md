@@ -5,34 +5,51 @@ For running it and the table list, see the [README](../README.md).
 
 ## The shape: a small ELT pipeline
 
+```mermaid
+flowchart TB
+  subgraph official[Official facts]
+    direction TB
+    turns[/"data/raw/turns/<br/>turn results"/]
+    news[/"data/raw/newsletters/<br/>GM newsletters"/]
+    pturn["parse_turn.py · parse_news.py<br/>regex parsers, one per format"]
+    turns --> pturn
+    news --> pturn
+  end
+
+  subgraph ally[Ally reference]
+    direction TB
+    refdoc[/"ally's compiled Word doc<br/>master city data"/]
+    pref["parse_reference.py<br/>python-docx → ref_* tables"]
+    refdoc --> pref
+  end
+
+  subgraph claims[Player publications]
+    direction TB
+    pubs[/"data/raw/player_publications/<br/>PDFs, scans, photos, Word files"/]
+    extract["extract_text.py<br/>text layer · OCR · LibreOffice"]
+    text[/"data/extracted/ machine text (committed)<br/>data/transcribed/ hand-corrected, where OCR is poor"/]
+    session["read in a Claude session<br/>following docs/claims_extraction.md"]
+    cjson[/"data/claims/*.json<br/>one claim per fact + verbatim quote"/]
+    pclaims["claims.py"]
+    pubs --> extract --> text --> session --> cjson --> pclaims
+  end
+
+  aliases[/"data/aliases/families.csv"/]
+  normalize["normalize.py<br/>place keys, family aliases, dimension tables,<br/>road routes, distances, coordinates"]
+  load["load.py<br/>dlt → DuckDB (or sqlite3)"]
+  db[("data/renaissance.duckdb<br/>generated, not committed")]
+  views["renaissance/sql/views.sql<br/>current state, turn-over-turn changes,<br/>claims next to the official record"]
+  ask["rensim ask + renaissance/sql/questions.sql"]
+  answers(["answers"])
+
+  pturn --> normalize
+  pref --> normalize
+  pclaims --> normalize
+  aliases --> normalize
+  normalize --> load --> db --> views --> ask --> answers
 ```
-OFFICIAL (facts)                          PLAYER PUBLICATIONS (claims)
-data/raw/turns/        turn results       data/raw/player_publications/
-data/raw/newsletters/  GM newsletters        PDFs, scans, photos, Word files
-        │                                         │
-        │ parse_turn.py, parse_news.py            │ extract_text.py
-        │ regex parsers, one per format           │ text layer / OCR / LibreOffice
-        │                                         ▼
-        │                                 data/extracted/   machine text (committed)
-        │                                 data/transcribed/ hand-corrected text, where OCR is poor
-        │                                         │
-        │                                         │ read in a Claude session,
-        │                                         ▼ following docs/claims_extraction.md
-        │                                 data/claims/*.json  one claim per fact + verbatim quote
-        │                                         │ claims.py
-        └───────────────► normalize.py ◄──────────┘
-                    place keys, family aliases, dimension tables,
-                    road routes, distances, coordinates
-                                   │
-                                   │ load.py: dlt -> DuckDB (or sqlite3)
-                                   ▼
-                    data/renaissance.duckdb   (generated, not committed)
-                                   │
-                    renaissance/sql/views.sql: current state, turn-over-turn changes,
-                                   claims next to the official record
-                                   │
-                    rensim ask + renaissance/sql/questions.sql: answers
-```
+
+Slanted boxes are files, rectangles are code, the cylinder is the database.
 
 `rensim run` runs everything top to bottom. `rensim ask` only reads.
 
@@ -52,6 +69,62 @@ data/raw/newsletters/  GM newsletters        PDFs, scans, photos, Word files
 | `renaissance/sql/questions.sql`, `ask.py` | Answers | Saved questions plus ad hoc SQL |
 | `tests/` | Trust | Run against a made-up account in `tests/fixtures/`, so no real game files are needed; keep tests against your own files in your data repo |
 | `.github/workflows/check.yml` | CI | Every push: tests, full load, all questions; answers on the run's summary page |
+
+## Data model
+
+A star schema: fact tables hold keys and measures, and dimensions hold the descriptive
+attributes you filter and label by. Every fact shares the same (conformed) dimensions, so
+prices, events and orders for one place or one month line up without matching spellings.
+
+> Planned in issue #2: `views.sql` doesn't use these names yet.
+
+```mermaid
+flowchart LR
+  dim_turn([dim_turn<br/>game month])
+  dim_source([dim_source<br/>kind, reliability])
+  dim_place([dim_place<br/>name, coords, SCD2 controller])
+  dim_persona([dim_persona<br/>name, family, SCD2 office])
+  dim_family([dim_family<br/>spellings])
+
+  f_status[fact_persona_turn]
+  f_skill[fact_persona_skill_turn]
+  f_asset[fact_persona_asset_turn]
+  f_presence[fact_presence_turn]
+  f_market[fact_market_price]
+  f_event[fact_event]
+  f_order[fact_order]
+  f_claim[fact_claim]
+
+  dim_turn --- f_status & f_skill & f_asset & f_presence & f_market & f_event & f_order & f_claim
+  dim_persona --- f_status & f_skill & f_asset & f_presence & f_order
+  dim_place --- f_status & f_presence & f_market & f_event & f_order & f_claim
+  dim_family --- f_presence & f_event & f_claim
+  dim_source --- f_status & f_market & f_event & f_order & f_claim
+```
+
+Rounded boxes are dimensions and square boxes are facts. Facts never join to other facts.
+
+| Fact | Type | Grain: one row per... | Built from |
+|---|---|---|---|
+| `fact_persona_turn` | periodic snapshot | persona × turn | `turn_persona_status` |
+| `fact_persona_skill_turn` | periodic snapshot | persona × skill × turn | `turn_persona_skills` |
+| `fact_persona_asset_turn` | periodic snapshot | persona × asset × turn | `turn_persona_assets` |
+| `fact_presence_turn` | periodic snapshot | persona seen × place × inside/outside × turn | `turn_presence` |
+| `fact_market_price` | periodic snapshot | place × side × item × source | `turn_market`, `ref_city_market`, `claim_market` |
+| `fact_event` | transaction | newsletter event | `news_events` |
+| `fact_order` | transaction | order code sent | `orders_sent` |
+| `fact_claim` | transaction | claim in a publication | `claims` |
+
+**Snapshot measures don't add up across turns.** Morale restated every turn is compared or read
+at a point in time, never summed; transaction rows can be counted.
+
+**`dim_turn` is keyed on the game month** (`1547-01`), because turn reports carry an end-of-month
+date, orders a month and claims a publication date. It also gives each turn its previous turn.
+
+**Office and control are slowly changing (type 2).** `dim_persona` keeps one row per version of a
+persona's office, and `dim_place` one per change of controller (from `turn_location_officials`),
+each with `valid_from` / `valid_to`. A fact joins to the version valid at its turn, so a February
+order shows the office its sender held in February.
 
 ## Design decisions
 
