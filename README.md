@@ -118,7 +118,14 @@ words that aren't in the source.
 | `my_settings` | your account, family and home, for the views |
 | `unparsed_lines` | any line no pattern matched, so nothing is silently dropped |
 
-Views: `v_turns`, `v_personae_now`, `v_persona_changes`, `v_skill_changes`, `v_asset_changes`,
+The views are a star schema over those tables (see [Data model](docs/architecture.md#data-model)):
+
+- Dimensions: `dim_sources`, `dim_turns` (one row per game month), plus the history of offices,
+  `dim_persona_offices` and `dim_place_officials`.
+- Facts: `fact_persona_status`, `fact_persona_skills`, `fact_persona_assets`, `fact_presence`,
+  `fact_lookups`, `fact_market_prices`, `fact_events`, `fact_sieges`, `fact_orders`, `fact_claims`.
+
+Analysis views on top: `v_turns`, `v_personae_now`, `v_persona_changes`, `v_skill_changes`, `v_asset_changes`,
 `v_presence_changes`, `v_market_changes`, `v_roads`, `v_events`, `v_claims`, `v_family_sources`,
 `v_markets` (every known price, freshest source per place, with miles from home).
 How it's built and why: [`docs/architecture.md`](docs/architecture.md); game terms:
