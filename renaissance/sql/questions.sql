@@ -29,26 +29,27 @@ FROM v_market_changes WHERE game_date = (SELECT d FROM latest) AND price <> prev
 
 -- name: who_is_here
 -- Everyone inside or outside my location on the latest turn, mine and others.
-SELECT pr.location, pr.inside_or_outside, pr.persona_id, pr.given_name, pr.family, pr.troops,
+SELECT p.name AS location, f.inside_or_outside, f.persona_id, d.given_name, d.family, f.troops,
        CASE WHEN d.is_mine THEN 'mine' ELSE 'other' END AS whose
-FROM turn_presence pr
-JOIN dim_personae d ON d.persona_id = pr.persona_id
-WHERE pr.game_date = (SELECT MAX(game_date) FROM turn_presence)
-ORDER BY pr.inside_or_outside, pr.persona_id;
+FROM fact_presence f
+JOIN dim_personae d ON d.persona_id = f.persona_id
+JOIN dim_places p ON p.place_key = f.location_key
+WHERE f.game_date = (SELECT MAX(game_date) FROM fact_presence)
+ORDER BY f.inside_or_outside, f.persona_id;
 
 -- name: best_at_each_skill
 -- For each skill, which of my characters is strongest (latest turn).
 SELECT k.skill, s.given_name, k.level
-FROM turn_persona_skills k
+FROM fact_persona_skills k
 JOIN v_personae_now s ON s.persona_id = k.persona_id AND s.game_date = k.game_date
-WHERE k.level = (SELECT MAX(k2.level) FROM turn_persona_skills k2
+WHERE k.level = (SELECT MAX(k2.level) FROM fact_persona_skills k2
                  WHERE k2.skill = k.skill AND k2.game_date = k.game_date)
 ORDER BY k.level DESC, k.skill, s.given_name;
 
 -- name: family_wealth
 -- Ducats held by each of my characters, largest first.
 SELECT s.given_name, s.family, a.quantity AS ducats
-FROM turn_persona_assets a
+FROM fact_persona_assets a
 JOIN v_personae_now s ON s.persona_id = a.persona_id AND s.game_date = a.game_date
 WHERE a.asset = 'ducats'
 ORDER BY ducats DESC;
@@ -56,7 +57,7 @@ ORDER BY ducats DESC;
 -- name: nearest_places
 -- Places my lookups found, by straight-line distance from home.
 SELECT l.place, l.is_set_up, l.lat, l.lon, l.miles_from_home, l.game_date AS looked_up
-FROM turn_lookups l
+FROM fact_lookups l
 ORDER BY l.is_set_up DESC, l.miles_from_home;
 
 -- name: busiest_roads
@@ -68,22 +69,21 @@ ORDER BY work_reports DESC, route;
 
 -- name: most_active_families
 -- Families appearing most often in official newsletter events.
-SELECT actor_family, COUNT(*) AS events,
+SELECT actor_family_key AS actor_family, COUNT(*) AS events,
        SUM(CASE WHEN event_type = 'road_shortened' THEN 1 ELSE 0 END) AS road_work,
        SUM(CASE WHEN event_type <> 'road_shortened' THEN 1 ELSE 0 END) AS other_events
-FROM news_events
-WHERE actor_family IS NOT NULL
-GROUP BY actor_family
+FROM fact_events
+WHERE actor_family_key IS NOT NULL
+GROUP BY actor_family_key
 HAVING COUNT(*) > 1
 ORDER BY events DESC, actor_family;
 
 -- name: conflict
 -- Sieges, their results, and captures from the GM newsletter.
 SELECT s.issue, 'siege' AS kind, p.name AS place, s.besieger || COALESCE(', ' || s.besieger_title, '') AS by_whom,
-       r.outcome || ', defenders lost ' || r.attrition_pct || '%' AS result
-FROM news_sieges s
+       s.outcome || ', defenders lost ' || s.attrition_pct || '%' AS result
+FROM fact_sieges s
 JOIN dim_places p ON p.place_key = s.place_key
-LEFT JOIN news_siege_results r ON r.issue = s.issue AND r.place_key = s.place_key
 UNION ALL
 SELECT issue, event_type, place, actor || COALESCE(', ' || actor_title, ''),
        target_family || ' tower taken with ' || quantity || ' auxiliaries'
@@ -104,7 +104,7 @@ SELECT s.title, COUNT(*) AS claims,
        SUM(CASE WHEN c.hedge = 'reported' THEN 1 ELSE 0 END) AS reported,
        SUM(CASE WHEN c.hedge = 'rumored'  THEN 1 ELSE 0 END) AS rumored,
        SUM(CASE WHEN c.hedge = 'denied'   THEN 1 ELSE 0 END) AS denied
-FROM claims c JOIN sources s ON s.source_id = c.source_id
+FROM fact_claims c JOIN dim_sources s ON s.source_id = c.source_id
 GROUP BY s.title
 ORDER BY claims DESC, s.title;
 
@@ -131,21 +131,29 @@ ORDER BY family_key;
 
 -- name: price_comparison
 -- Prices a player newsletter reports elsewhere vs the GM's prices at my location, per good.
-SELECT cm.item, cm.location AS reported_at, cm.price AS reported_price, cm.game_date AS reported_for,
-       tm.location AS my_location, tm.price AS my_price,
+WITH official AS (
+    SELECT f.* FROM fact_market_prices f JOIN dim_sources s ON s.source_id = f.source_id
+    WHERE s.kind = 'turn_report'
+), claimed AS (
+    SELECT f.* FROM fact_market_prices f JOIN dim_sources s ON s.source_id = f.source_id
+    WHERE s.reliability = 'player_claim'
+)
+SELECT cm.item, pc.name AS reported_at, cm.price AS reported_price, cm.as_of AS reported_for,
+       pt.name AS my_location, tm.price AS my_price,
        tm.price - cm.price AS my_price_minus_reported
-FROM claim_market cm
-JOIN turn_market tm ON tm.item = cm.item AND tm.side = cm.side
-WHERE tm.game_date = (SELECT MAX(game_date) FROM turn_market)
-ORDER BY ABS(tm.price - cm.price) DESC, cm.item, cm.location;
+FROM claimed cm
+JOIN official tm ON tm.item = cm.item AND tm.side = cm.side
+JOIN dim_places pc ON pc.place_key = cm.place_key
+JOIN dim_places pt ON pt.place_key = tm.place_key
+WHERE tm.as_of = (SELECT MAX(as_of) FROM official)
+ORDER BY ABS(tm.price - cm.price) DESC, cm.item, reported_at;
 
 -- name: wealth_over_time
 -- Total ducats held by my characters each turn, across both of my positions.
-SELECT a.game_date, s.player_family, SUM(a.quantity) AS ducats, COUNT(DISTINCT a.persona_id) AS characters
-FROM turn_persona_assets a
-JOIN sources s ON s.source_id = a.source_id
-WHERE a.asset = 'ducats' AND s.account = (SELECT account FROM my_settings)
-GROUP BY a.game_date, s.player_family
+SELECT a.game_date, a.player_family, SUM(a.quantity) AS ducats, COUNT(DISTINCT a.persona_id) AS characters
+FROM fact_persona_assets a
+WHERE a.asset = 'ducats' AND a.account = (SELECT account FROM my_settings)
+GROUP BY a.game_date, a.player_family
 ORDER BY a.game_date;
 
 -- name: conquests
@@ -174,7 +182,9 @@ ORDER BY v.item, v.place;
 
 -- name: my_past_orders
 -- What I ordered each turn, persona by persona, in plain English (from orders/*.txt).
-SELECT o.game_month, o.persona_id, p.given_name, o.start_location, o.code, o.explanation
-FROM orders_sent o
-LEFT JOIN (SELECT DISTINCT persona_id, given_name FROM v_personae_now) p USING (persona_id)
-ORDER BY o.game_month DESC, o.persona_id, o.line_no, o.seq;
+SELECT o.turn_month AS game_month, o.persona_id, p.given_name,
+       COALESCE(pl.name, o.start_location) AS start_location, o.code, o.explanation
+FROM fact_orders o
+LEFT JOIN (SELECT DISTINCT persona_id, given_name FROM v_personae_now) p ON p.persona_id = o.persona_id
+LEFT JOIN dim_places pl ON pl.place_key = o.start_location_key
+ORDER BY o.turn_month DESC, o.persona_id, o.line_no, o.seq;
