@@ -36,7 +36,7 @@ class Pipeline(unittest.TestCase):
 
     def test_my_personae_now(self):
         rows = self.con.execute("SELECT persona_id, given_name, location FROM v_personae_now ORDER BY persona_id").fetchall()
-        self.assertEqual([r[1] for r in rows], ["Alan", "Brian", "Colin", "Donald"])
+        self.assertEqual([r[1] for r in rows], ["Arya", "Jon", "Sansa", "Eddard"])
         self.assertEqual({r[2] for r in rows}, {"Carlisle"})
 
     def test_orders_sent_are_loaded(self):
@@ -63,7 +63,7 @@ class TurnParser(unittest.TestCase):
     def test_header(self):
         s = self.t["sources"][0]
         self.assertEqual((s["account"], s["player_family"], s["game_date"], s["real_date"]),
-                         ("TST", "VERNON", "1547-03-31", "2026-10-01"))
+                         ("TST", "STARK", "1547-03-31", "2026-10-01"))
 
     def test_numbers_and_coordinates(self):
         ducats = {a["persona_id"]: a["quantity"] for a in self.t["persona_assets"] if a["asset"] == "ducats"}
@@ -76,8 +76,8 @@ class TurnParser(unittest.TestCase):
         self.assertEqual(found, {"Kelso": True, "Edinburgh": True, "NOWHERESVILLE": False})
 
     def test_magistrate_and_market(self):
-        donald = next(p for p in self.t["persona_status"] if p["persona_id"] == 104)
-        self.assertEqual(donald["office"], "MAGISTRATE of Carlisle")
+        eddard = next(p for p in self.t["persona_status"] if p["persona_id"] == 104)
+        self.assertEqual(eddard["office"], "MAGISTRATE of Carlisle")
         horse = next(m for m in self.t["market"] if m["item"] == "horse")
         self.assertEqual((horse["side"], horse["price"], horse["quantity"]), ("supply", 1, 450))
 

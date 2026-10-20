@@ -65,66 +65,86 @@ Slanted boxes are files, rectangles are code, the cylinder is the database.
 | `renaissance/claims.py` | Claims files -> rows | Validates each file and checks every quote is really in the source text |
 | `renaissance/normalize.py` | Make sources joinable | `*_key` columns for places and families; `dim_places`, `dim_personae`, `dim_families` |
 | `renaissance/load.py` | Rows -> database | dlt into DuckDB, with explicit column types; sqlite3 fallback with the same tables |
-| `renaissance/sql/views.sql` | Meaning on top of rows | Snapshots become "now" and "what changed"; claims sit beside official facts |
+| `renaissance/sql/views.sql` | Meaning on top of rows | Star schema: dimensions, facts, then analysis views where snapshots become "now" and "what changed" and claims sit beside official facts |
 | `renaissance/sql/questions.sql`, `ask.py` | Answers | Saved questions plus ad hoc SQL |
 | `tests/` | Trust | Run against a made-up account in `tests/fixtures/`, so no real game files are needed; keep tests against your own files in your data repo |
 | `.github/workflows/check.yml` | CI | Every push: tests, full load, all questions; answers on the run's summary page |
 
 ## Data model
 
-A star schema: fact tables hold keys and measures, and dimensions hold the descriptive
-attributes you filter and label by. Every fact shares the same (conformed) dimensions, so
-prices, events and orders for one place or one month line up without matching spellings.
-
-> Planned in issue #2: `views.sql` doesn't use these names yet.
+`views.sql` is a star schema in three layers. **Dimensions** hold the descriptive attributes you
+filter and label by: who, where, when, which source. **Facts** hold one row per measurement or
+event, as keys into the dimensions plus measures. **Analysis views** (`v_*`) answer the everyday
+questions from facts and dimensions. Every fact shares the same (conformed) dimensions, so
+prices, events and orders for one place or one month line up without matching spellings. The
+saved questions use the facts, dimensions and analysis views; the loaded tables stay available
+for ad hoc SQL.
 
 ```mermaid
 flowchart LR
-  dim_turn([dim_turn<br/>game month])
-  dim_source([dim_source<br/>kind, reliability])
-  dim_place([dim_place<br/>name, coords, SCD2 controller])
-  dim_persona([dim_persona<br/>name, family, SCD2 office])
-  dim_family([dim_family<br/>spellings])
+  dim_personae([dim_personae<br/>name, family, is_mine])
+  dim_places([dim_places<br/>name, coordinates, miles from home])
+  dim_families([dim_families<br/>spellings, official vs claimed])
+  dim_persona_offices([dim_persona_offices<br/>type 2, office over time])
+  dim_place_officials([dim_place_officials<br/>type 2, office holders over time])
 
-  f_status[fact_persona_turn]
-  f_skill[fact_persona_skill_turn]
-  f_asset[fact_persona_asset_turn]
-  f_presence[fact_presence_turn]
-  f_market[fact_market_price]
-  f_event[fact_event]
-  f_order[fact_order]
-  f_claim[fact_claim]
+  f_status[fact_persona_status]
+  f_skills[fact_persona_skills]
+  f_assets[fact_persona_assets]
+  f_presence[fact_presence]
+  f_lookups[fact_lookups]
+  f_market[fact_market_prices]
+  f_events[fact_events]
+  f_sieges[fact_sieges]
+  f_orders[fact_orders]
+  f_claims[fact_claims]
 
-  dim_turn --- f_status & f_skill & f_asset & f_presence & f_market & f_event & f_order & f_claim
-  dim_persona --- f_status & f_skill & f_asset & f_presence & f_order
-  dim_place --- f_status & f_presence & f_market & f_event & f_order & f_claim
-  dim_family --- f_presence & f_event & f_claim
-  dim_source --- f_status & f_market & f_event & f_order & f_claim
+  dim_personae --- f_status & f_skills & f_assets & f_presence & f_orders
+  dim_places --- f_status & f_presence & f_lookups & f_market & f_events & f_sieges & f_orders & f_claims
+  dim_families --- f_presence & f_lookups & f_events & f_sieges & f_claims
+  dim_personae -.- dim_persona_offices
+  dim_places -.- dim_place_officials
 ```
 
-Rounded boxes are dimensions and square boxes are facts. Facts never join to other facts.
+Rounded boxes are dimensions and square boxes are facts. Facts never join to other facts. Not
+drawn, because every fact has them: `turn_month` into `dim_turns` (one row per game month) and
+`source_id` into `dim_sources` (kind and reliability of each document). Dotted lines link a
+dimension to its history.
 
 | Fact | Type | Grain: one row per... | Built from |
 |---|---|---|---|
-| `fact_persona_turn` | periodic snapshot | persona × turn | `turn_persona_status` |
-| `fact_persona_skill_turn` | periodic snapshot | persona × skill × turn | `turn_persona_skills` |
-| `fact_persona_asset_turn` | periodic snapshot | persona × asset × turn | `turn_persona_assets` |
-| `fact_presence_turn` | periodic snapshot | persona seen × place × inside/outside × turn | `turn_presence` |
-| `fact_market_price` | periodic snapshot | place × side × item × source | `turn_market`, `ref_city_market`, `claim_market` |
-| `fact_event` | transaction | newsletter event | `news_events` |
-| `fact_order` | transaction | order code sent | `orders_sent` |
-| `fact_claim` | transaction | claim in a publication | `claims` |
+| `fact_persona_status` | periodic snapshot | persona × turn report | `turn_persona_status` |
+| `fact_persona_skills` | periodic snapshot | persona × skill × turn report | `turn_persona_skills` |
+| `fact_persona_assets` | periodic snapshot | persona × asset × turn report | `turn_persona_assets` |
+| `fact_presence` | periodic snapshot | persona seen × place × inside/outside × turn report | `turn_presence` |
+| `fact_market_prices` | periodic snapshot | place × side × item × source (× claim) | `turn_market`, `ref_city_market`, `claim_market` |
+| `fact_lookups` | transaction | lookup answered in a turn report | `turn_lookups` |
+| `fact_events` | transaction | newsletter event | `news_events` |
+| `fact_sieges` | transaction | siege reported in a newsletter, with its result | `news_sieges`, `news_siege_results` |
+| `fact_orders` | transaction | order code sent | `orders_sent` |
+| `fact_claims` | transaction | claim in a publication | `claims` |
+
+`tests/test_star.py` checks every fact is unique at its grain and every key finds its dimension
+row, so a parser change that breaks the model fails a test.
 
 **Snapshot measures don't add up across turns.** Morale restated every turn is compared or read
 at a point in time, never summed; transaction rows can be counted.
 
-**`dim_turn` is keyed on the game month** (`1547-01`), because turn reports carry an end-of-month
-date, orders a month and claims a publication date. It also gives each turn its previous turn.
+**`dim_turns` is keyed on the game month** (`1547-01`), because turn reports carry an end-of-month
+date, orders a month and claims a publication date. `month_index` counts months, so the calendar
+month before is `month_index - 1`; the previous turn *report* can be further back (`v_turns`).
 
-**Office and control are slowly changing (type 2).** `dim_persona` keeps one row per version of a
-persona's office, and `dim_place` one per change of controller (from `turn_location_officials`),
-each with `valid_from` / `valid_to`. A fact joins to the version valid at its turn, so a February
-order shows the office its sender held in February.
+**Names live in dimensions, except where there's no key.** A persona's name comes from
+`dim_personae` and a place's from `dim_places`. Newsletter actors and claim subjects have no game
+ID, so their names stay on the fact, and so does a lookup's place, since a failed lookup names no
+real place.
+
+**Offices are slowly changing (type 2).** `dim_personae` keeps the latest values (type 1);
+`dim_persona_offices` keeps one row per version of a persona's office, and
+`dim_place_officials` one per holder of each office at a place, each with `valid_from` /
+`valid_to` (exclusive, NULL while current). A fact joins to the version in force at its month:
+`f.turn_month >= o.valid_from AND (f.turn_month < o.valid_to OR o.valid_to IS NULL)`, so an
+order shows the office its sender held that month.
 
 ## Design decisions
 

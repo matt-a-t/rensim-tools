@@ -1,0 +1,409 @@
+{
+ "what_changed": [
+  [
+   "market",
+   "Carlisle",
+   "demand food price 960 -> 963"
+  ],
+  [
+   "skill",
+   "Arya",
+   "assassination: 320 -> 340"
+  ]
+ ],
+ "who_is_here": [
+  [
+   "Carlisle",
+   "inside",
+   101,
+   "Arya",
+   "STARK",
+   1,
+   "mine"
+  ],
+  [
+   "Carlisle",
+   "inside",
+   102,
+   "Jon",
+   "STARK",
+   1,
+   "mine"
+  ],
+  [
+   "Carlisle",
+   "inside",
+   103,
+   "Sansa",
+   "STARK",
+   null,
+   "mine"
+  ],
+  [
+   "Carlisle",
+   "inside",
+   104,
+   "Eddard",
+   "STARK",
+   null,
+   "mine"
+  ],
+  [
+   "Carlisle",
+   "inside",
+   900,
+   "Theon",
+   "GREYJOY",
+   500,
+   "other"
+  ]
+ ],
+ "best_at_each_skill": [
+  [
+   "architecture",
+   "Jon",
+   500
+  ],
+  [
+   "assassination",
+   "Jon",
+   900
+  ],
+  [
+   "cannonmaking",
+   "Sansa",
+   800
+  ],
+  [
+   "fortification",
+   "Jon",
+   400
+  ],
+  [
+   "letters",
+   "Arya",
+   60
+  ],
+  [
+   "merchantry",
+   "Arya",
+   30
+  ]
+ ],
+ "family_wealth": [
+  [
+   "Arya",
+   "STARK",
+   20000
+  ],
+  [
+   "Eddard",
+   "STARK",
+   250000
+  ],
+  [
+   "Jon",
+   "STARK",
+   300000
+  ],
+  [
+   "Sansa",
+   "STARK",
+   200000
+  ]
+ ],
+ "nearest_places": [
+  [
+   "Edinburgh",
+   1,
+   55.95,
+   -3.1667,
+   73.1,
+   "1547-01-31"
+  ],
+  [
+   "Edinburgh",
+   1,
+   55.95,
+   -3.1667,
+   73.1,
+   "1547-02-28"
+  ],
+  [
+   "Edinburgh",
+   1,
+   55.95,
+   -3.1667,
+   73.1,
+   "1547-03-31"
+  ],
+  [
+   "Kelso",
+   1,
+   55.5333,
+   -2.4667,
+   47.5,
+   "1547-01-31"
+  ],
+  [
+   "Kelso",
+   1,
+   55.5333,
+   -2.4667,
+   47.5,
+   "1547-02-28"
+  ],
+  [
+   "Kelso",
+   1,
+   55.5333,
+   -2.4667,
+   47.5,
+   "1547-03-31"
+  ],
+  [
+   "NOWHERESVILLE",
+   0,
+   null,
+   null,
+   null,
+   "1547-01-31"
+  ],
+  [
+   "NOWHERESVILLE",
+   0,
+   null,
+   null,
+   null,
+   "1547-02-28"
+  ],
+  [
+   "NOWHERESVILLE",
+   0,
+   null,
+   null,
+   null,
+   "1547-03-31"
+  ]
+ ],
+ "busiest_roads": [
+  [
+   "Carlisle - Dumfries",
+   2,
+   1,
+   34,
+   36
+  ],
+  [
+   "Carlisle - Kelso",
+   3,
+   2,
+   54,
+   58
+  ],
+  [
+   "Edinburgh - Kelso",
+   2,
+   2,
+   42,
+   44
+  ]
+ ],
+ "most_active_families": [
+  [
+   "ARRYN",
+   5,
+   3,
+   2
+  ],
+  [
+   "BOLTON",
+   4,
+   3,
+   1
+  ],
+  [
+   "LANNISTER",
+   5,
+   2,
+   3
+  ],
+  [
+   "TYRELL",
+   6,
+   4,
+   2
+  ]
+ ],
+ "conflict": [
+  [
+   901,
+   "siege",
+   "Berwick",
+   "Roose BOLTON, Warden of the West March",
+   "failed, defenders lost 12%"
+  ],
+  [
+   901,
+   "tower_captured",
+   "Jedburgh",
+   "Jaime LANNISTER, Earl of Tweed",
+   "ARRYN tower taken with 1200 auxiliaries"
+  ]
+ ],
+ "spelling_variants": [
+  [
+   "Kelso",
+   "KELSO | Kelso",
+   13
+  ]
+ ],
+ "claims_by_source": [
+  [
+   "The Test Gazette No. 1",
+   2,
+   0,
+   2,
+   0,
+   0
+  ]
+ ],
+ "disputed_titles": [],
+ "who_holds_what": [
+  [
+   "Tyrion Lannister",
+   "LANNISTER",
+   "Magistrate of Kelso",
+   "Kelso",
+   "reported",
+   "1547-03",
+   "The Test Gazette No. 1"
+  ]
+ ],
+ "families_official_and_claimed": [
+  [
+   "LANNISTER",
+   "LANNISTER",
+   5,
+   2
+  ]
+ ],
+ "price_comparison": [],
+ "wealth_over_time": [
+  [
+   "1547-01-31",
+   "STARK",
+   770000,
+   4
+  ],
+  [
+   "1547-02-28",
+   "STARK",
+   770000,
+   4
+  ],
+  [
+   "1547-03-31",
+   "STARK",
+   770000,
+   4
+  ]
+ ],
+ "conquests": [
+  [
+   "1547-03",
+   "location_captured",
+   "Jedburgh",
+   "Jaime LANNISTER",
+   "Earl of Tweed",
+   800,
+   null
+  ],
+  [
+   "1547-03",
+   "tower_captured",
+   "Jedburgh",
+   "Jaime LANNISTER",
+   "Earl of Tweed",
+   1200,
+   "ARRYN"
+  ]
+ ],
+ "where_to_buy_grain": [],
+ "best_place_to_sell": [
+  [
+   "food",
+   "Carlisle",
+   963,
+   "1547-03-31",
+   "official",
+   0.0
+  ],
+  [
+   "metals",
+   "Carlisle",
+   3000,
+   "1547-03-31",
+   "official",
+   0.0
+  ]
+ ],
+ "my_past_orders": [
+  [
+   "1547-04",
+   101,
+   "Arya",
+   "Carlisle",
+   "mlKelso*",
+   "Move by land to Kelso"
+  ],
+  [
+   "1547-04",
+   102,
+   "Jon",
+   "Carlisle",
+   "i101k",
+   "Instruct persona 101 in assassination"
+  ],
+  [
+   "1547-04",
+   102,
+   "Jon",
+   "Carlisle",
+   "mlEdinburgh*",
+   "Move by land to Edinburgh"
+  ],
+  [
+   "1547-04",
+   103,
+   "Sansa",
+   "Carlisle",
+   "mlKelso*",
+   "Move by land to Kelso"
+  ],
+  [
+   "1547-04",
+   103,
+   "Sansa",
+   "Carlisle",
+   "t104bows600",
+   "Transfer 600 bows to persona 104"
+  ],
+  [
+   "1547-04",
+   104,
+   "Eddard",
+   "Carlisle",
+   "bhorse450",
+   "Buy 450 horse"
+  ],
+  [
+   "1547-04",
+   104,
+   "Eddard",
+   "Carlisle",
+   "n%Hawick",
+   "Ask for the co-ordinates of Hawick"
+  ]
+ ]
+}

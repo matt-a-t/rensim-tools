@@ -133,6 +133,11 @@ def normalize(tables: dict[str, list[dict]]) -> dict[str, list[dict]]:
         else:
             row["route_key"] = None
 
+    # ---- order start locations: keyed to join dim_places, but not counted as mentions, since an
+    # orders file is my own writing rather than a sighting in a source -------------------------
+    for row in tables.get("orders_sent", []):
+        row["start_location_key"] = place_key(row.get("start_location"))
+
     # ---- lookup distances from the turn's home location ----------------------
     home = {r["source_id"]: (r["lat"], r["lon"]) for r in tables.get("turn_location_status", [])}
     for row in tables.get("turn_lookups", []):

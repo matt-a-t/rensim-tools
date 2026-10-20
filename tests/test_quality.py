@@ -67,7 +67,7 @@ class Quality(unittest.TestCase):
                          ["turn_market: turn:TST:1547-03-31 demand food has price 0"])
 
     def test_unknown_gm_message_fails(self):
-        text = read(FEB).rstrip("\n") + "\nVernon         Your courier was lost at sea.\n"
+        text = read(FEB).rstrip("\n") + "\nStark          Your courier was lost at sea.\n"
         found = self.problems(JAN, self.broken(text), MAR)["check_unparsed"]
         self.assertEqual(len(found), 1)
         self.assertIn("Your courier was lost at sea.", found[0])

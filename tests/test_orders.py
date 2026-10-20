@@ -24,41 +24,41 @@ class Codes(unittest.TestCase):
 
 class Checking(unittest.TestCase):
     def test_valid_orders_are_clean(self):
-        rep = check("/TST *VERNON\n*Carlisle .101 i102l mlEdinburgh*\n*Carlisle .102 i104c pffar\n")
+        rep = check("/TST *STARK\n*Carlisle .101 i102l mlEdinburgh*\n*Carlisle .102 i104c pffar\n")
         self.assertEqual(rep.errors, [])
 
     def test_mistakes_are_caught(self):
-        rep = check("/TST *VERNON\n*Edinburgh .102 pffar\n*Carlisle .999 lx\n"
+        rep = check("/TST *STARK\n*Edinburgh .102 pffar\n*Carlisle .999 lx\n"
                     "*Carlisle .101 s0clobows500 zzz9\t\n")
         text = " ".join(rep.errors)
         for expected in ("starts in Carlisle", "isn't one of yours", "can't sell 500", "isn't a valid order code", "tab"):
             self.assertIn(expected, text)
 
     def test_group_order_warning(self):
-        rep = check("/TST *VERNON\n*Carlisle .103 mlCarlisle pffar\n")
+        rep = check("/TST *STARK\n*Carlisle .103 mlCarlisle pffar\n")
         self.assertTrue(any("comes after a movement/battle order" in w for w in rep.warnings))
 
     def test_send_strips_notes(self):
-        self.assertEqual(send_text("# note\n/TST *VERNON\n\n*Carlisle .103  pffar   # why\n"),
-                         "/TST *VERNON\n*Carlisle .103 pffar\n")
+        self.assertEqual(send_text("# note\n/TST *STARK\n\n*Carlisle .103  pffar   # why\n"),
+                         "/TST *STARK\n*Carlisle .103 pffar\n")
 
 
 class Cargo(unittest.TestCase):
-    # Colin (103) holds 600 bows and no horses on the March 1547 report.
+    # Sansa (103) holds 600 bows and no horses on the March 1547 report.
     def test_goods_without_horses_cannot_move(self):
-        rep = check("/TST *VERNON\n*Carlisle .103 mlKelso*\n")
+        rep = check("/TST *STARK\n*Carlisle .103 mlKelso*\n")
         self.assertTrue(any("600 cargo" in e for e in rep.errors), rep.errors)
 
     def test_leaving_goods_behind_fixes_it(self):
-        rep = check("/TST *VERNON\n*Carlisle .103 t104bows600 mlKelso*\n")
+        rep = check("/TST *STARK\n*Carlisle .103 t104bows600 mlKelso*\n")
         self.assertEqual(rep.errors, [])
 
     def test_buying_horses_fixes_it(self):
-        rep = check("/TST *VERNON\n*Carlisle .103 bhorse300 mlKelso*\n")
+        rep = check("/TST *STARK\n*Carlisle .103 bhorse300 mlKelso*\n")
         self.assertEqual(rep.errors, [])
 
     def test_buying_horses_cannot_carry_more(self):
-        rep = check("/TST *VERNON\n*Carlisle .103 bhorse299 mlKelso*\n")
+        rep = check("/TST *STARK\n*Carlisle .103 bhorse299 mlKelso*\n")
         self.assertTrue(rep.errors)
 
 
@@ -71,8 +71,8 @@ class SavedOrders(unittest.TestCase):
         self.assertEqual([r["code"] for r in rows if r["order_group"] is None], [])
         moves = {r["persona_id"]: r["code"] for r in rows if r["order_group"] == "movement/battle"}
         self.assertEqual(moves, {101: "mlKelso*", 102: "mlEdinburgh*", 103: "mlKelso*"})
-        self.assertEqual((rows[0]["account"], rows[0]["family"], rows[0]["game_month"]), ("TST", "VERNON", "1547-04"))
-        self.assertIn("Donald stays home", out["sources"][0]["notes"])
+        self.assertEqual((rows[0]["account"], rows[0]["family"], rows[0]["game_month"]), ("TST", "STARK", "1547-04"))
+        self.assertIn("Eddard stays home", out["sources"][0]["notes"])
 
     def test_saved_orders_pass_the_checker(self):
         from renaissance.settings import ORDERS_DIR
@@ -81,7 +81,7 @@ class SavedOrders(unittest.TestCase):
         self.assertFalse(any("database already has co-ordinates" in w for w in rep.warnings))
 
     def test_wrong_account_is_caught(self):
-        rep = check("/AMP *VERNON\n*Carlisle .101 mlKelso*\n")
+        rep = check("/AMP *STARK\n*Carlisle .101 mlKelso*\n")
         self.assertTrue(any("your account is TST" in e for e in rep.errors), rep.errors)
 
     def test_fee_estimate_uses_my_bills(self):
@@ -103,5 +103,5 @@ class Training(unittest.TestCase):
             self.assertEqual(o["trainer"]["location"], o["trainee"]["location"])
 
     def test_checker_rejects_a_repeated_pair(self):
-        rep = check("/TST *VERNON\n*Carlisle .103 i104c i104a\n")
+        rep = check("/TST *STARK\n*Carlisle .103 i104c i104a\n")
         self.assertTrue(any("once per pair" in e for e in rep.errors))

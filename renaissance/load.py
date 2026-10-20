@@ -41,7 +41,11 @@ OPTIONAL_TABLES = {
     "turn_lookups": "source_id text, game_date text, account text, player_family text, family text, place text, "
                     "is_set_up bool, lat double, lon double, place_key text, family_key text, miles_from_home double",
     "orders_sent": "source_id text, game_month text, account text, family text, persona_id bigint, "
-                   "start_location text, line_no bigint, seq bigint, code text, order_group text, explanation text",
+                   "start_location text, line_no bigint, seq bigint, code text, order_group text, explanation text, "
+                   "start_location_key text",
+    "turn_location_officials": "source_id text, game_date text, account text, player_family text, location text, "
+                               "role text, holder text, tower bigint, selection_code text, selected_by text, "
+                               "location_key text",
 }
 
 

@@ -16,7 +16,7 @@ Line numbers below point into its text.
 | **Morale, popularity** | Persona ratings, 0–999 like all ratings. Popularity affects troop tenacity and dealings with non-player locals. | `turn_persona_status` |
 | **Wealth, loyalty** | Location ratings that rise when market demand is satisfied; feudal levies cost 10 loyalty. (~l.73, l.255) | `turn_location_status` |
 | **Coordinates** | Degrees.minutes, so `N55.57` = 55°57' = 55.95°. Confirmed against Edinburgh, Ayr and Carlisle in your lookups, and Landshut in the Grimani newsletter, all within a few miles of their real positions. Request any location's with order `N%<location>`. | `lat`/`lon` columns, `dim_places` |
-| **Persona ID** | The number in `Alan( 101)VERNON`. Stable across turns, so it's the key for characters. | `dim_personae.persona_id` |
+| **Persona ID** | The number in `Arya( 101)STARK`. Stable across turns, so it's the key for characters. | `dim_personae.persona_id` |
 
 ## Source reliability
 
