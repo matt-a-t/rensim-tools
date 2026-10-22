@@ -1,10 +1,10 @@
 """The `rensim` command: one entry point for every tool. Run it from your data folder (the one
 with rensim.toml), or anywhere below it.
 
-    rensim run [--backend sqlite]       parse data/raw and orders/, load the database
+    rensim run                          parse data/raw and orders/, load the database, build the views
     rensim ask [name] [--sql "..."]     saved questions, or your own SQL
     rensim quality                      data quality checks on the loaded database
-    rensim compare                      DuckDB and SQLite give the same answers
+    rensim dbt COMMAND                  any dbt command on the views: build, test, docs generate...
     rensim orders FILE [--send]         check orders in plain English / print the text to email
     rensim training [--skills a,b]      best training orders for personae starting together
     rensim extract                      text from new player publications (needs OCR tools)
@@ -18,7 +18,7 @@ from __future__ import annotations
 import importlib
 import sys
 
-COMMANDS = {"run": "run", "ask": "ask", "quality": "quality", "compare": "compare",
+COMMANDS = {"run": "run", "ask": "ask", "quality": "quality", "dbt": "dbt_runner",
             "orders": "orders", "training": "training", "extract": "extract_text",
             "claims": "claims"}
 

@@ -1,5 +1,5 @@
 # On every push and pull request: the tests (made-up account in tests/fixtures), then every command
-# end to end on the fixtures, with DuckDB and SQLite giving the same answers.
+# end to end on the fixtures, then dbt builds and tests the views and generates their docs site.
 name: test
 
 on:
@@ -30,4 +30,14 @@ jobs:
           rensim claims
           rensim orders orders/tst_1547-04.txt
           rensim training
-          rensim compare
+      - name: dbt build (every model, then every test)
+        working-directory: tests/fixtures
+        run: rensim dbt build
+      - name: dbt docs
+        working-directory: tests/fixtures
+        run: rensim dbt docs generate --static
+      # Download it from the run's summary page and open static_index.html in a browser.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dbt-docs
+          path: tests/fixtures/.dbt/target/static_index.html

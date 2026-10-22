@@ -115,7 +115,7 @@
  "nearest_places": [
   [
    "Edinburgh",
-   1,
+   true,
    55.95,
    -3.1667,
    73.1,
@@ -123,7 +123,7 @@
   ],
   [
    "Edinburgh",
-   1,
+   true,
    55.95,
    -3.1667,
    73.1,
@@ -131,7 +131,7 @@
   ],
   [
    "Edinburgh",
-   1,
+   true,
    55.95,
    -3.1667,
    73.1,
@@ -139,7 +139,7 @@
   ],
   [
    "Kelso",
-   1,
+   true,
    55.5333,
    -2.4667,
    47.5,
@@ -147,7 +147,7 @@
   ],
   [
    "Kelso",
-   1,
+   true,
    55.5333,
    -2.4667,
    47.5,
@@ -155,7 +155,7 @@
   ],
   [
    "Kelso",
-   1,
+   true,
    55.5333,
    -2.4667,
    47.5,
@@ -163,7 +163,7 @@
   ],
   [
    "NOWHERESVILLE",
-   0,
+   false,
    null,
    null,
    null,
@@ -171,7 +171,7 @@
   ],
   [
    "NOWHERESVILLE",
-   0,
+   false,
    null,
    null,
    null,
@@ -179,7 +179,7 @@
   ],
   [
    "NOWHERESVILLE",
-   0,
+   false,
    null,
    null,
    null,

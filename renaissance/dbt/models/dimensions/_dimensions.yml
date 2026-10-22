@@ -1,0 +1,87 @@
+# Dimensions: who, where, when, which source. dim_places, dim_personae and dim_families are
+# loaded tables (see sources.yml); these four are built from the loaded tables.
+version: 2
+
+models:
+  - name: dim_sources
+    description: >
+      Every source document once: turn reports, GM newsletters, ally references, player
+      publications, saved orders. Its columns are whatever the loaded `sources` table has, since
+      that depends on which sources a player has.
+    columns:
+      - name: source_id
+        data_tests: [unique, not_null]
+      - name: reliability
+        description: >
+          How far to trust the document: `official` (your turn reports and the GM's newsletter),
+          `ally_compiled` (an ally's transcription of GM data), `player_claim` (player
+          publications), `my_orders` (orders you sent).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [official, ally_compiled, player_claim, my_orders]
+      - name: turn_month
+        description: Game month of the document ('1547-03'), the key into dim_turns.
+
+  - name: dim_turns
+    description: >
+      Every game month any source refers to. Turn reports carry an end-of-month date, orders a
+      month and claims a publication date, so the month is the shared key.
+    columns:
+      - name: turn_month
+        data_tests: [unique, not_null]
+      - name: month_index
+        description: >
+          Months counted from year 0, so the calendar month before is month_index - 1. The
+          previous turn *report* can be further back; see v_turns.
+
+  - name: dim_persona_offices
+    description: >
+      Slowly changing (type 2): one row per version of a persona's office. A new version starts
+      whenever the office differs from the persona's previous turn report, including when an
+      office comes back. Join a fact to the version in force at its month with
+      `f.turn_month >= o.valid_from AND (f.turn_month < o.valid_to OR o.valid_to IS NULL)`.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [persona_id, version]
+    columns:
+      - name: persona_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('game', 'dim_personae')
+                field: persona_id
+      - name: valid_from
+        description: First month of this version.
+        data_tests: [not_null]
+      - name: valid_to
+        description: Month the next version starts (exclusive); NULL for the version in force now.
+      - name: last_seen
+        description: Last month a turn report showed this version.
+      - name: is_current
+        description: 1 for the version in force at the latest report.
+
+  - name: dim_place_officials
+    description: >
+      Slowly changing (type 2): who holds each office at a place (SOVEREIGN, FEUDATORY,
+      MAGISTRATE, bishops...), one row per holder per place and role. Versioned like
+      dim_persona_offices.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [place_key, role, version]
+    columns:
+      - name: place_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('game', 'dim_places')
+                field: place_key
+      - name: valid_from
+        data_tests: [not_null]
+      - name: valid_to
+        description: Month the next holder starts (exclusive); NULL for the holder now.

@@ -2,10 +2,9 @@
 fails the run, so a broken file stops CI instead of quietly loading half its rows.
 
     rensim quality                  # after rensim run
-    rensim quality --backend sqlite
 
-Plain SQL that runs on both DuckDB and SQLite. When real data legitimately breaks a rule, add it
-to the known exceptions in your rensim.toml with the reason, rather than loosening the rule:
+The checks read the loaded tables, not the dbt models. When real data legitimately breaks a rule,
+add it to the known exceptions in your rensim.toml with the reason, rather than loosening the rule:
 
     [quality]
     known_gaps = [{ account = "ABC", from = "1546-07", to = "1546-12", why = "changed family" }]
@@ -162,10 +161,8 @@ def main(argv=None):
     from .load import connect
     from .run import DB
 
-    ap = argparse.ArgumentParser(prog="rensim quality")
-    ap.add_argument("--backend", choices=["duckdb", "sqlite"], default="duckdb")
-    args = ap.parse_args(argv)
-    results = run_checks(connect(args.backend, DB[args.backend]))
+    argparse.ArgumentParser(prog="rensim quality").parse_args(argv)
+    results = run_checks(connect(DB))
     for name, problems in results.items():
         print(f"{'FAIL' if problems else 'ok  '}  {name}")
         for p in problems:

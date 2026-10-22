@@ -9,12 +9,12 @@ nothing in this repo needs, or contains, anyone's turn reports, addresses or the
 
 ```
 your data folder                              rensim-tools
-  rensim.toml        who you are                rensim run      parse + load into DuckDB (or SQLite)
+  rensim.toml        who you are                rensim run      parse, load into DuckDB, build the views
   data/raw/turns/    turn results               rensim ask      saved questions, or your own SQL
   data/raw/newsletters/  GM newsletters         rensim orders   check orders, print the text to email
   data/raw/player_publications/  propaganda     rensim training best training for personae together
   data/claims/*.json claims from publications   rensim quality  data checks; rensim claims  quote checks
-  orders/            the orders you sent        rensim compare  DuckDB and SQLite agree
+  orders/            the orders you sent        rensim dbt      dbt on the views: test, docs...
 ```
 
 ## Set up
@@ -39,6 +39,8 @@ known_gm_messages = ['Your courier was delayed\.']
 ```
 
 Run the commands from that folder or anywhere below it (`rensim config` shows what it found).
+They write generated files there that don't belong in git: `data/renaissance.duckdb`, plus dlt's
+and dbt's working folders `.dlt_pipelines/` and `.dbt/`.
 Environment variables override the file: `RENSIM_ACCOUNT`, `RENSIM_FAMILY`, `RENSIM_HOME`,
 `RENSIM_DATA_DIR`, `RENSIM_ORDERS_DIR`, and `RENSIM_CONFIG` for a config file somewhere else.
 
@@ -46,7 +48,8 @@ Environment variables override the file: `RENSIM_ACCOUNT`, `RENSIM_FAMILY`, `REN
 
 1. Save the turn result in `data/raw/turns/` and the newsletter in `data/raw/newsletters/`.
    File names don't matter: dates and accounts are read from inside the files.
-2. `rensim run`, then `rensim ask` (every saved question) or `rensim ask what_changed`, or
+2. `rensim run` (loads everything, builds the views with dbt and runs dbt's tests), then
+   `rensim ask` (every saved question) or `rensim ask what_changed`, or
    `rensim ask --sql "SELECT * FROM v_personae_now"`.
 3. Write your orders in `orders/<account>_YYYY-MM.txt`, with `#` lines explaining the plan:
 
@@ -118,7 +121,8 @@ words that aren't in the source.
 | `my_settings` | your account, family and home, for the views |
 | `unparsed_lines` | any line no pattern matched, so nothing is silently dropped |
 
-The views are a star schema over those tables (see [Data model](docs/architecture.md#data-model)):
+The views are a star schema over those tables (see [Data model](docs/architecture.md#data-model)),
+built by the [dbt](https://docs.getdbt.com/) project in [`renaissance/dbt/`](renaissance/dbt/):
 
 - Dimensions: `dim_sources`, `dim_turns` (one row per game month), plus the history of offices,
   `dim_persona_offices` and `dim_place_officials`.
@@ -130,6 +134,11 @@ Analysis views on top: `v_turns`, `v_personae_now`, `v_persona_changes`, `v_skil
 `v_markets` (every known price, freshest source per place, with miles from home).
 How it's built and why: [`docs/architecture.md`](docs/architecture.md); game terms:
 [`docs/glossary.md`](docs/glossary.md).
+
+`rensim dbt` runs any dbt command against your database: `rensim dbt test` checks every fact is
+unique at its grain, every key finds its dimension and categories hold known values;
+`rensim dbt docs generate --static` writes a browsable site of every table, view, column and test,
+with a lineage graph, to `.dbt/target/static_index.html`.
 
 ## Notes on the data
 
@@ -150,6 +159,12 @@ python -m unittest      # runs against the made-up account in tests/fixtures
 ```
 
 The tests never touch real game files; add tests against your own files in your data folder.
-CI runs the tests and builds the fixtures with both DuckDB and SQLite.
+CI runs the tests, every command on the fixtures, `rensim dbt build`, and the dbt docs site
+(downloadable from each run's summary page).
+
+To change a view, edit its model in `renaissance/dbt/models/` (a `SELECT`, with
+`{{ ref('...') }}` for other models and `{{ source('game', '...') }}` for loaded tables), and its
+description and tests in the `.yml` file beside it. If an answer is meant to change, regenerate the
+expected answers (see `tests/test_answers.py`) and review the diff.
 
 MIT licence.

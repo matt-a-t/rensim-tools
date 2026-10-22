@@ -1,0 +1,49 @@
+# Analysis views: the everyday questions, written against facts and dimensions. Snapshots become
+# "now" and "what changed"; claims sit beside the official record, never mixed into it.
+version: 2
+
+models:
+  - name: v_turns
+    description: Turn reports in order per account and family, so "previous turn" is easy to find.
+    columns:
+      - name: turn_no
+        description: 1 for the first report of that account and family, then 2, 3...
+  - name: v_personae_now
+    description: Each of my characters as of my latest turn (my account's newest report).
+  - name: v_persona_changes
+    description: Morale, popularity, location and office, with the previous turn's value alongside.
+  - name: v_skill_changes
+    description: Skill levels turn over turn (prev_level is NULL for a newly learned skill).
+  - name: v_asset_changes
+    description: Asset quantities turn over turn.
+  - name: v_presence_changes
+    description: Who arrived at or left a location between consecutive turns.
+    columns:
+      - name: change
+        data_tests:
+          - accepted_values: {arguments: {values: [arrived, left]}}
+  - name: v_market_changes
+    description: Market prices from turn reports, turn over turn.
+  - name: v_roads
+    description: Road work from the GM newsletter, one row per route (direction ignored).
+    columns:
+      - name: route_key
+        data_tests: [unique]
+  - name: v_events
+    description: Every official event, with places resolved to their canonical name.
+  - name: v_claims
+    description: Every claim from a player publication with its source and canonical names.
+  - name: v_family_sources
+    description: For each family, how often it appears in official sources vs player claims.
+  - name: v_markets
+    description: >
+      Every market price we know of, one row per place, side and good, from the most trusted
+      source that has the place: turn reports (official, latest report only), then an ally's
+      compiled reference (ally_compiled), then player newsletters (player_claim). Check as_of and
+      reliability before trusting a price.
+    columns:
+      - name: reliability
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [official, ally_compiled, player_claim]

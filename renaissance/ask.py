@@ -3,7 +3,8 @@
     rensim ask                       # all questions
     rensim ask what_changed          # one question by name
     rensim ask --sql "SELECT * FROM dim_places LIMIT 5"
-    rensim ask --backend sqlite ...
+
+The questions read the dbt models (renaissance/dbt/) that `rensim run` builds.
 """
 from __future__ import annotations
 
@@ -47,9 +48,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="rensim ask")
     ap.add_argument("name", nargs="?")
     ap.add_argument("--sql")
-    ap.add_argument("--backend", choices=["duckdb", "sqlite"], default="duckdb")
     args = ap.parse_args(argv)
-    con = connect(args.backend, DB[args.backend])
+    con = connect(DB)
 
     if args.sql:
         show(con, args.sql)

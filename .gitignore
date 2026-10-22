@@ -7,6 +7,7 @@
 *.duckdb.wal
 *.sqlite
 .dlt_pipelines/
+.dbt/
 __pycache__/
 *.pyc
 *.egg-info/
