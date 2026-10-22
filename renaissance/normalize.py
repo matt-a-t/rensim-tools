@@ -1,20 +1,24 @@
 """The normalization layer: turn per-file parse output into consistent, joinable tables.
 
-- Every place mention gets a `*_key` ('PEGU', 'Pegu' -> 'pegu'; 'CapeVerde' -> 'capeverde').
+- Every place mention gets a `*_key` ('PEGU', 'Pegu' -> 'pegu'; 'CapeVerde' -> 'capeverde'),
+  resolved through data/aliases/places.csv.
 - `dim_places` lists each place once, with its best display name, coordinates (when any turn
   report gave them) and every spelling seen.
 - `dim_personae` lists each character once by its game ID.
 - Road events get a direction-independent route key ('nan|pegu').
 - Lookup results get straight-line miles from the location the turn report was about.
 - `my_settings` holds your account, family and home from rensim.toml, for the SQL views.
-- Family names get a `*_key` resolved through data/aliases/families.csv (confirmed variants only),
+- Family names get a `*_key` resolved through data/aliases/families.csv,
   and `dim_families` lists each family once with where it appears (official sources vs claims).
+- Characters named without an ID (newsletter actors, besiegers, claim subjects) get a
+  `*_persona_id` from data/aliases/personae.csv.
+The alias files hold only matches you accepted (`rensim match`); nothing is merged on looks alone.
 """
 from __future__ import annotations
 
 from collections import Counter, defaultdict
 
-from .claims import load_family_aliases
+from .claims import load_family_aliases, load_persona_aliases, load_place_aliases
 from .common import coord, display_name, miles_between, place_key
 from .settings import HOME, MY_ACCOUNT, MY_FAMILY
 
@@ -30,6 +34,13 @@ PLACE_COLUMNS = [
     ("ref_city_egress_denied", "city"), ("ref_city_roads", "city"), ("ref_city_roads", "destination"),
     ("ref_city_officials", "city"), ("ref_city_market", "city"), ("ref_personae", "location"),
     ("turn_location_roads", "destination"),
+]
+
+# (table, given-name column, family column, persona ID column to fill) for characters named without an ID.
+PERSONA_MENTIONS = [
+    ("news_events", "actor_given", "actor_family", "actor_persona_id"),
+    ("news_sieges", "besieger_given", "besieger_family", "besieger_persona_id"),
+    ("claims", "subject_given", "subject_family", "subject_persona_id"),
 ]
 
 # (table, column, kind of source) for every column holding a family name.
@@ -65,9 +76,11 @@ def combine(parsed_files: list[dict[str, list[dict]]]) -> dict[str, list[dict]]:
 def normalize(tables: dict[str, list[dict]]) -> dict[str, list[dict]]:
     # ---- place keys on every place column ---------------------------------
     spellings: dict[str, Counter] = defaultdict(Counter)
+    place_aliases = load_place_aliases()
     for table, col in PLACE_COLUMNS:
         for row in tables.get(table, []):
             key = place_key(row.get(col))
+            key = place_aliases.get(key, key)
             row[f"{col}_key"] = key
             if key:
                 spellings[key][row[col].strip()] += 1
@@ -125,6 +138,12 @@ def normalize(tables: dict[str, list[dict]]) -> dict[str, list[dict]]:
                                "in_official": f["official_rows"] > 0, "in_claims": f["claim_rows"] > 0}
                               for f in sorted(fam.values(), key=lambda f: f["family_key"])]
 
+    # ---- persona IDs for characters named without one ---------------------------
+    persona_aliases = load_persona_aliases()
+    for table, given, family, out in PERSONA_MENTIONS:
+        for row in tables.get(table, []):
+            row[out] = persona_aliases.get(((row.get(given) or "").strip().lower(), row.get(f"{family}_key")))
+
     # ---- road routes ----------------------------------------------------------
     for row in tables.get("news_events", []):
         if row["event_type"] == "road_shortened":
@@ -136,7 +155,8 @@ def normalize(tables: dict[str, list[dict]]) -> dict[str, list[dict]]:
     # ---- order start locations: keyed to join dim_places, but not counted as mentions, since an
     # orders file is my own writing rather than a sighting in a source -------------------------
     for row in tables.get("orders_sent", []):
-        row["start_location_key"] = place_key(row.get("start_location"))
+        key = place_key(row.get("start_location"))
+        row["start_location_key"] = place_aliases.get(key, key)
 
     # ---- lookup distances from the turn's home location ----------------------
     home = {r["source_id"]: (r["lat"], r["lon"]) for r in tables.get("turn_location_status", [])}

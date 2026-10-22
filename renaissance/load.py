@@ -23,15 +23,17 @@ OPTIONAL_TABLES = {
     "claims": "source_id text, claim_id text, claim_type text, subject_name text, subject_given text, "
               "subject_family text, subject_place text, predicate text, object text, place text, game_date text, "
               "hedge text, claimed_by text, quote text, refs text, lat_text text, lon_text text, data_json text, "
-              "place_key text, subject_place_key text, subject_family_key text",
+              "place_key text, subject_place_key text, subject_family_key text, subject_persona_id bigint",
     "news_events": "source_id text, issue bigint, game_month text, event_type text, actor text, actor_given text, "
                    "actor_family text, actor_title text, place text, place_from text, place_to text, miles bigint, "
                    "quantity bigint, target_family text, truncated bool, raw_text text, seq bigint, place_key text, "
-                   "place_from_key text, place_to_key text, actor_family_key text, target_family_key text, route_key text",
+                   "place_from_key text, place_to_key text, actor_family_key text, target_family_key text, route_key text, "
+                   "actor_persona_id bigint",
     "news_siege_results": "source_id text, issue bigint, game_month text, place text, outcome text, attrition_pct bigint, "
                           "detail text, place_key text",
     "news_sieges": "source_id text, issue bigint, game_month text, place text, besieger text, besieger_given text, "
-                   "besieger_family text, besieger_title text, raw_text text, place_key text, besieger_family_key text",
+                   "besieger_family text, besieger_title text, raw_text text, place_key text, besieger_family_key text, "
+                   "besieger_persona_id bigint",
     "ref_city_market": "source_id text, city text, as_of text, side text, item text, bq double, price bigint, "
                        "quantity bigint, city_key text",
     "turn_lookups": "source_id text, game_date text, account text, player_family text, family text, place text, "

@@ -34,8 +34,8 @@ flowchart TB
     pubs --> extract --> text --> session --> cjson --> pclaims
   end
 
-  aliases[/"data/aliases/families.csv"/]
-  normalize["normalize.py<br/>place keys, family aliases, dimension tables,<br/>road routes, distances, coordinates"]
+  aliases[/"data/aliases/<br/>families, places, personae: matches you accepted"/]
+  normalize["normalize.py<br/>place keys, aliases, dimension tables,<br/>road routes, distances, coordinates"]
   load["load.py<br/>dlt → DuckDB"]
   db[("data/renaissance.duckdb<br/>generated, not committed")]
   views["dbt models in renaissance/dbt/<br/>star schema: dimensions, facts, analysis views<br/>+ tests and a docs site"]
@@ -47,12 +47,15 @@ flowchart TB
   pclaims --> normalize
   aliases --> normalize
   normalize --> load --> db --> views --> ask --> answers
+  match["rensim match<br/>Splink proposes look-alike names"]
+  db -.-> match -.->|"you accept or reject"| aliases
 ```
 
 Slanted boxes are files, rectangles are code, the cylinder is the database.
 
 `rensim run` runs everything top to bottom, ending with `dbt run` (build the views) and
-`dbt test`. `rensim ask` only reads.
+`dbt test`. `rensim ask` only reads. `rensim match` (dotted) reads the database and proposes
+aliases; only the ones you accept reach the next run.
 
 ## Components
 
@@ -64,7 +67,8 @@ Slanted boxes are files, rectangles are code, the cylinder is the database.
 | `renaissance/extract_text.py` | Publication -> text | Run by hand when a new publication arrives (needs Tesseract + LibreOffice); output is committed so CI doesn't need them |
 | `renaissance/parse_reference.py` | Ally reference -> `ref_*` tables | Reads an ally's compiled Word document of GM data (python-docx): cities and characters, each city with its own as-of date |
 | `renaissance/claims.py` | Claims files -> rows | Validates each file and checks every quote is really in the source text |
-| `renaissance/normalize.py` | Make sources joinable | `*_key` columns for places and families; `dim_places`, `dim_personae`, `dim_families` |
+| `renaissance/normalize.py` | Make sources joinable | `*_key` columns for places and families, persona IDs for characters named without one (all through `data/aliases/`); `dim_places`, `dim_personae`, `dim_families` |
+| `renaissance/match.py` | Propose aliases | `rensim match`: Splink scores look-alike family, place and character names; you mark each proposal y or n; `--apply` writes the accepted ones to `data/aliases/`. Optional extra: `pip install "rensim-tools[match]"` |
 | `renaissance/load.py` | Rows -> database | dlt into DuckDB, with explicit column types |
 | `renaissance/dbt/` | Meaning on top of rows | A dbt project, one model (a `SELECT`) per view. Star schema: dimensions, facts, then analysis views where snapshots become "now" and "what changed" and claims sit beside official facts. YAML beside the models holds descriptions and tests |
 | `renaissance/dbt_runner.py` | Runs dbt | `rensim dbt ...`: any dbt command, pointed at your database, in its own process; working files in `.dbt/` |
@@ -178,9 +182,19 @@ the quote isn't in the source text. That's the guard against an AI (or a person)
 OCR drafts and corrected transcriptions are both kept so corrections can be reviewed.
 
 **Messy names are resolved in one place.** Spelling drift (`PEGU`/`Pegu`, `pNompenh`) gets a
-normalized key; confirmed variants that a key can't catch go in `data/aliases/families.csv`.
-Near-identical names aren't merged on looks alone: Habsburg, HABSBOURG and HAPSBOURG all hold
-separate towers in the same city, so they stay three families. Characters are keyed by their game ID, never by name.
+normalized key; variants a key can't catch go in `data/aliases/` (`families.csv`, `places.csv`,
+and `personae.csv` for characters named without their game ID). Characters are keyed by their
+game ID, never by name.
+
+**Look-alike names are proposed, never merged.** Habsburg, HABSBOURG and HAPSBOURG all hold
+separate towers in the same city, so they stay three families. `rensim match` uses
+[Splink](https://moj-analytical-services.github.io/splink/) to score pairs of names (spelling,
+places in common, distance apart) and writes the likely ones to `data/aliases/proposed.csv`; an
+alias exists only once you accept it. One rule overrides the score: the GM doesn't misspell, so
+two different names that both appear in turn reports or GM newsletters are never proposed. The
+model's settings are set by hand (with u measured from your names) because a game has hundreds of
+names, not the many thousands Splink's training needs; precision is measured on a labelled sample
+in the tests, and on your own with `rensim match --score`.
 
 **Nothing is silently dropped.** Lines no pattern matches go to `unparsed_lines`; newsletter
 events that match no template are kept as `other` with their full text. `rensim run` prints both.
@@ -210,7 +224,7 @@ views away; CI runs `dbt build`, where stopping is the point.
 | A new turn-report line type | Add a branch in `parse_location` / `parse_personae`, plus a test with the real line |
 | A new newsletter event type | Add a template to `EVENT_TEMPLATES` in `parse_news.py`; count it against the raw text in a test |
 | A player publication | Raw file -> `rensim extract` -> claims file (see `docs/claims_extraction.md`) |
-| A spelling alias | A row in `data/aliases/families.csv` |
+| A spelling alias | `rensim match`, mark the proposal y, `rensim match --apply`; or add a row to a `data/aliases/` file by hand |
 | A question | A `-- name:` block in `renaissance/sql/questions.sql` |
 | A view | A model in `renaissance/dbt/models/<layer>/`, with its description and tests in that folder's `.yml` |
 
@@ -218,5 +232,5 @@ views away; CI runs `dbt build`, where stopping is the point.
 
 - **Automatic claim extraction**: run `docs/claims_extraction.md` through the Claude API when a
   publication lands; the quote check stays the safety net.
-- **Entity resolution** with Splink once there are enough names to need it.
+- **A review page for `rensim match`** in place of editing `proposed.csv`.
 - **An MCP server** over the database, so questions can be asked in plain English.

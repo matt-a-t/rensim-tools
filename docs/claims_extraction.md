@@ -69,8 +69,8 @@ instructions a future automatic step (Claude API) will follow. Output goes to
 - One claim per fact. "X, Archbishop of Y, granted indulgences" is two claims:
   an `office` claim and an `action` claim.
 - Keep names as spelled in the source; families in CAPITALS. Spelling differences
-  are resolved later through `data/aliases/families.csv`, not by editing. Only add an alias when
-  an official source confirms it: Habsburg, HABSBOURG and HAPSBOURG are three different families.
+  are resolved later through `data/aliases/` (`rensim match` proposes them; you accept or reject),
+  not by editing. Look-alikes aren't always one family: Habsburg, HABSBOURG and HAPSBOURG are three.
 - The hedge follows the source's own words, not your opinion of the source.
 - When a source reports someone else's claim in order to deny it (the proclamation), record both:
   the reported claim with `hedge: "rumored"` and the denial as its own claim with `hedge: "denied"`.

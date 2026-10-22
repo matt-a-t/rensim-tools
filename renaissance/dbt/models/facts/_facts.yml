@@ -148,7 +148,7 @@ models:
   - name: fact_events
     description: >
       Transaction. Grain: one event in one GM newsletter. Newsletter actors have no persona ID,
-      so actor names stay on the fact; families are keyed.
+      so actor names stay on the fact, with the ID once you've matched the name; families are keyed.
     data_tests:
       - unique_grain:
           arguments:
@@ -173,6 +173,10 @@ models:
       - name: actor_family_key
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+      - name: actor_persona_id
+        description: The character's game ID, once you've matched the actor's name to one (`rensim match`).
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
       - name: target_family_key
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
@@ -201,6 +205,10 @@ models:
       - name: besieger_family_key
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+      - name: besieger_persona_id
+        description: The character's game ID, once you've matched the besieger's name to one (`rensim match`).
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
 
   - name: fact_orders
     description: >
@@ -228,7 +236,7 @@ models:
   - name: fact_claims
     description: >
       Transaction. Grain: one claim in one player publication. Claims name people as the page
-      does (no persona ID), and `place` keeps the page's wording for a place no key was made
+      does (with a persona ID once you've matched the name), and `place` keeps the page's wording for a place no key was made
       from. turn_month is NULL for claims dated only by year.
     data_tests:
       - unique_grain:
@@ -270,3 +278,7 @@ models:
       - name: subject_family_key
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+      - name: subject_persona_id
+        description: The character's game ID, once you've matched the subject's name to one (`rensim match`).
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}

@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 extract = ["Pillow"]
+match = ["splink==5.0.0"]
 
 [project.scripts]
 rensim = "renaissance.cli:main"

@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install .
+      - run: pip install ".[match]"
       - name: Tests
         run: python -m unittest -v
       - name: Every command on the fixtures
@@ -30,6 +30,7 @@ jobs:
           rensim claims
           rensim orders orders/tst_1547-04.txt
           rensim training
+          rensim match
       - name: dbt build (every model, then every test)
         working-directory: tests/fixtures
         run: rensim dbt build
