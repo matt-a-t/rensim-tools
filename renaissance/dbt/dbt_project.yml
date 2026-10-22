@@ -1,0 +1,14 @@
+# The dbt project that turns the loaded tables into the star schema (docs/architecture.md, "Data model").
+# Run it through `rensim run` or `rensim dbt ...`, which point it at your database.
+name: rensim
+version: "1.0.0"
+profile: rensim
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+models:
+  rensim:
+    # Every model is a view: a saved query, so the database only stores the loaded tables and
+    # every answer is recomputed from them.
+    +materialized: view

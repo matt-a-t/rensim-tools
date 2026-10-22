@@ -1,33 +1,29 @@
-"""End to end on the made-up TST data: parse everything, load SQLite, answer every saved question,
+"""End to end on the made-up TST data: parse everything, load DuckDB, build the dbt models, answer every saved question,
 and pass the data quality checks. Plus the parser details a new player would trip over first."""
 import contextlib
 import io
-import tempfile
 import unittest
-from pathlib import Path
 
 from renaissance.ask import load_questions
-from renaissance.load import connect, load_sqlite
+from renaissance.load import connect
 from renaissance.parse_turn import parse_turn
 from renaissance.quality import run_checks
 from renaissance.run import parse_all
 from renaissance.settings import RAW
 
+from . import fixture_db
+
 
 class Pipeline(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        db = Path(cls.tmp.name) / "test.sqlite"
         with contextlib.redirect_stdout(io.StringIO()):
             cls.tables = parse_all()
-            load_sqlite(cls.tables, db)
-        cls.con = connect("sqlite", db)
+        cls.con = connect(fixture_db())
 
     @classmethod
     def tearDownClass(cls):
         cls.con.close()
-        cls.tmp.cleanup()
 
     def test_every_question_runs(self):
         for name, (_, sql) in load_questions().items():

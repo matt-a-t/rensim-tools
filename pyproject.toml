@@ -10,6 +10,8 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
+    "dbt-core==1.12.6",
+    "dbt-duckdb==1.11.0",
     "dlt[duckdb]==1.31.0",
     "duckdb==1.5.6",
     "python-docx==1.2.0",
@@ -25,4 +27,4 @@ rensim = "renaissance.cli:main"
 packages = ["renaissance"]
 
 [tool.setuptools.package-data]
-renaissance = ["sql/*.sql"]
+renaissance = ["sql/*.sql", "dbt/**/*.sql", "dbt/**/*.yml"]

@@ -1,16 +1,16 @@
 """Data quality checks: the made-up TST turns pass, and each kind of broken turn file fails.
 The broken files are written to a temp folder from a fixture turn with one deliberate fault each."""
-import contextlib
-import io
 import tempfile
 import unittest
 from pathlib import Path
 
-from renaissance.load import connect, load_sqlite
+from renaissance.load import connect
 from renaissance.normalize import combine, normalize
 from renaissance.parse_turn import parse_turn
 from renaissance.quality import known_gaps, run_checks
 from renaissance.settings import RAW
+
+from . import load
 
 JAN, FEB, MAR = (RAW / "turns" / f"tst_1547-0{m}.txt" for m in (1, 2, 3))
 
@@ -33,10 +33,8 @@ class Quality(unittest.TestCase):
         return path
 
     def problems(self, *turns: Path) -> dict[str, list[str]]:
-        db = self.dir / "check.sqlite"
-        with contextlib.redirect_stdout(io.StringIO()):   # load_sqlite prints row counts
-            load_sqlite(normalize(combine([parse_turn(p) for p in turns])), db)
-        con = connect("sqlite", db)
+        # The checks read the loaded tables, not the dbt models, so there's nothing to build.
+        con = connect(load(normalize(combine([parse_turn(p) for p in turns])), self.dir))
         try:
             return run_checks(con)
         finally:

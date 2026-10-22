@@ -1,104 +1,43 @@
-"""The star schema in views.sql: each fact is unique at its stated grain, every key in a fact finds
-its dimension row, and the type 2 dimensions version history correctly."""
-import contextlib
-import io
+"""The star schema built by the dbt project (renaissance/dbt/). The dbt tests check each fact is
+unique at its grain, every key finds its dimension row and categories hold known values; these
+check the history in the type 2 dimensions on made-up scenarios, which reads better in Python."""
 import tempfile
 import unittest
 from pathlib import Path
 
-from renaissance.load import connect, load_sqlite
-from renaissance.run import parse_all
+import duckdb
 
-# fact -> the columns that identify one row (its grain, as commented in views.sql).
-GRAIN = {
-    "fact_persona_status": ["source_id", "persona_id"],
-    "fact_persona_skills": ["source_id", "persona_id", "skill"],
-    "fact_persona_assets": ["source_id", "persona_id", "asset"],
-    "fact_presence": ["source_id", "location_key", "inside_or_outside", "persona_id"],
-    "fact_lookups": ["source_id", "place"],
-    "fact_market_prices": ["source_id", "claim_id", "place_key", "side", "item"],
-    "fact_events": ["source_id", "seq"],
-    "fact_sieges": ["source_id", "place_key"],
-    "fact_orders": ["source_id", "line_no", "seq"],
-    "fact_claims": ["source_id", "claim_id"],
-}
+from renaissance.dbt_runner import dbt
+from renaissance.load import DATASET, connect
 
-# (fact, column, dimension, dimension key). NULL keys are allowed; a key that's set must exist.
-# fact_orders.start_location_key is left out: orders aren't sightings, so they don't add places.
-FOREIGN_KEYS = [
-    (fact, "source_id", "dim_sources", "source_id") for fact in GRAIN
-] + [
-    (fact, "turn_month", "dim_turns", "turn_month") for fact in GRAIN
-] + [
-    ("fact_persona_status", "persona_id", "dim_personae", "persona_id"),
-    ("fact_persona_status", "location_key", "dim_places", "place_key"),
-    ("fact_persona_skills", "persona_id", "dim_personae", "persona_id"),
-    ("fact_persona_assets", "persona_id", "dim_personae", "persona_id"),
-    ("fact_presence", "persona_id", "dim_personae", "persona_id"),
-    ("fact_presence", "location_key", "dim_places", "place_key"),
-    ("fact_presence", "family_key", "dim_families", "family_key"),
-    ("fact_lookups", "place_key", "dim_places", "place_key"),
-    ("fact_lookups", "family_key", "dim_families", "family_key"),
-    ("fact_market_prices", "place_key", "dim_places", "place_key"),
-    ("fact_events", "place_key", "dim_places", "place_key"),
-    ("fact_events", "place_from_key", "dim_places", "place_key"),
-    ("fact_events", "place_to_key", "dim_places", "place_key"),
-    ("fact_events", "actor_family_key", "dim_families", "family_key"),
-    ("fact_events", "target_family_key", "dim_families", "family_key"),
-    ("fact_sieges", "place_key", "dim_places", "place_key"),
-    ("fact_sieges", "besieger_family_key", "dim_families", "family_key"),
-    ("fact_orders", "persona_id", "dim_personae", "persona_id"),
-    ("fact_claims", "place_key", "dim_places", "place_key"),
-    ("fact_claims", "subject_place_key", "dim_places", "place_key"),
-    ("fact_claims", "subject_family_key", "dim_families", "family_key"),
-]
+from . import copy_db, fixture_db
+
+FACTS = ["fact_persona_status", "fact_persona_skills", "fact_persona_assets", "fact_presence", "fact_lookups",
+         "fact_market_prices", "fact_events", "fact_sieges", "fact_orders", "fact_claims"]
 
 
-def grain_violations(con) -> list[str]:
-    out = []
-    for fact, cols in GRAIN.items():
-        # COALESCE so a NULL in a grain column (claim_id on turn prices) still groups.
-        keys = ", ".join(f"COALESCE(CAST({c} AS TEXT), '')" for c in cols)
-        n = con.execute(f"SELECT COUNT(*) FROM (SELECT {keys} FROM {fact} GROUP BY {keys} HAVING COUNT(*) > 1) d").fetchone()[0]
-        if n:
-            out.append(f"{fact}: {n} duplicated grain value(s) on {cols}")
-    return out
+class DbtTests(unittest.TestCase):
+    """Its own class, with no connection open: DuckDB won't let dbt write to a file this process is reading."""
 
-
-def orphan_keys(con) -> list[str]:
-    out = []
-    for fact, col, dim, key in FOREIGN_KEYS:
-        n = con.execute(f"SELECT COUNT(*) FROM {fact} f WHERE f.{col} IS NOT NULL "
-                        f"AND NOT EXISTS (SELECT 1 FROM {dim} d WHERE d.{key} = f.{col})").fetchone()[0]
-        if n:
-            out.append(f"{fact}.{col}: {n} row(s) with no match in {dim}")
-    return out
+    def test_dbt_tests_pass(self):
+        """Grain, keys and accepted values (the YAML files in renaissance/dbt/models/)."""
+        with tempfile.TemporaryDirectory() as work:
+            self.assertTrue(dbt(["--quiet", "test"], fixture_db(), work=Path(work)), "dbt test failed (output above)")
 
 
 class StarSchema(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        db = Path(cls.tmp.name) / "test.sqlite"
-        with contextlib.redirect_stdout(io.StringIO()):
-            load_sqlite(parse_all(), db)
-        cls.con = connect("sqlite", db)
+        cls.con = connect(fixture_db())
 
     @classmethod
     def tearDownClass(cls):
         cls.con.close()
-        cls.tmp.cleanup()
 
     def test_every_fact_has_rows(self):
-        for fact in GRAIN:
+        for fact in FACTS:
             with self.subTest(fact=fact):
                 self.assertGreater(self.con.execute(f"SELECT COUNT(*) FROM {fact}").fetchone()[0], 0)
-
-    def test_facts_are_unique_at_their_grain(self):
-        self.assertEqual(grain_violations(self.con), [])
-
-    def test_every_key_finds_its_dimension(self):
-        self.assertEqual(orphan_keys(self.con), [])
 
     def test_turn_months(self):
         rows = self.con.execute("SELECT turn_month, year, month, month_index FROM dim_turns "
@@ -122,14 +61,14 @@ class OfficeHistory(unittest.TestCase):
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        db = Path(self.tmp.name) / "test.sqlite"
-        with contextlib.redirect_stdout(io.StringIO()):
-            load_sqlite(parse_all(), db)
-        self.con = connect("sqlite", db)
+        self.con = duckdb.connect(str(copy_db(Path(self.tmp.name))))   # writable: adds two turns
+        self.con.execute(f"SET schema = '{DATASET}'")
         for date, office in (("1547-04-30", None), ("1547-05-31", "MAGISTRATE of Carlisle")):
+            # _dlt_load_id and _dlt_id: dlt's bookkeeping columns, required on every loaded row
             self.con.execute("INSERT INTO turn_persona_status (source_id, game_date, account, player_family, "
-                             "persona_id, office) VALUES (?, ?, 'TST', 'STARK', 104, ?)",
-                             (f"turn:TST:{date}", date, office))
+                             "persona_id, office, _dlt_load_id, _dlt_id) "
+                             "VALUES (?, ?, 'TST', 'STARK', 104, ?, 'test', ?)",
+                             (f"turn:TST:{date}", date, office, f"test-{date}"))
 
     def tearDown(self):
         self.con.close()

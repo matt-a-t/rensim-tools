@@ -1,7 +1,6 @@
-"""Parse every file in data/raw, normalize, and load into a database.
+"""Parse every file in data/raw, normalize, load into DuckDB, then build the views with dbt.
 
-    rensim run                  # DuckDB via dlt
-    rensim run --backend sqlite # Python's built-in sqlite3
+    rensim run
 
 Drop new turn results into data/raw/turns/ and new GM newsletters into data/raw/newsletters/,
 then rerun. File names don't matter; the parser reads the dates from inside each file.
@@ -11,7 +10,8 @@ from __future__ import annotations
 import argparse
 
 from .claims import load_claims
-from .load import load_duckdb, load_sqlite
+from .dbt_runner import dbt
+from .load import load_duckdb
 from .normalize import combine, normalize
 from .orders import parse_orders_file
 from .parse_news import parse_newsletter
@@ -19,7 +19,7 @@ from .parse_reference import parse_reference
 from .parse_turn import parse_turn
 from .settings import ALLY_REFERENCE, BASE, DATA, MY_ACCOUNT, ORDERS_DIR, RAW
 
-DB = {"duckdb": DATA / "renaissance.duckdb", "sqlite": DATA / "renaissance.sqlite"}
+DB = DATA / "renaissance.duckdb"
 
 
 def parse_all() -> dict[str, list[dict]]:
@@ -52,9 +52,7 @@ def parse_all() -> dict[str, list[dict]]:
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="rensim run")
-    ap.add_argument("--backend", choices=["duckdb", "sqlite"], default="duckdb")
-    args = ap.parse_args(argv)
+    argparse.ArgumentParser(prog="rensim run").parse_args(argv)
 
     if not MY_ACCOUNT:
         print("No account set: add rensim.toml (see the README) so your own turns are recognised.")
@@ -66,12 +64,19 @@ def main(argv=None):
         for row in unparsed:
             print(f"  [{row['source_id']} line {row['line_no']}] {row['text'].strip()}")
 
-    print(f"\nLoading into {args.backend}: {DB[args.backend].relative_to(BASE)}")
-    if args.backend == "duckdb":
-        load_duckdb(tables, DB["duckdb"])
-    else:
-        load_sqlite(tables, DB["sqlite"])
-    print("Done. Try:  rensim ask" + (" --backend sqlite" if args.backend == "sqlite" else ""))
+    print(f"\nLoading into {DB.relative_to(BASE)}")
+    load_duckdb(tables, DB)
+
+    # Models first, then tests, rather than `dbt build`: build skips everything downstream of a
+    # failing test, and a bad row shouldn't cost you the views. A failing test is reported instead.
+    print("\nBuilding the views (dbt run)...")
+    if not dbt(["run"], DB):
+        return 1
+    print("\nTesting them (dbt test)...")
+    if not dbt(["test"], DB):
+        print("\nSome dbt tests failed (above). The views are built; check the data before trusting them.")
+        return 1
+    print("\nDone. Try:  rensim ask")
 
 
 if __name__ == "__main__":

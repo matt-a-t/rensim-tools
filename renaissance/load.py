@@ -1,26 +1,22 @@
-"""Load the normalized tables into a database.
-
-Two backends, same tables and same SQL views:
-  - duckdb  (default): loaded with dlt, the open-source Python loading library
-  - sqlite  (fallback): Python's built-in sqlite3, no installs needed
+"""Load the normalized tables into DuckDB with dlt, the open-source Python loading library. The
+views on top are dbt models (renaissance/dbt/), built by `rensim run` after the load.
 
 Every run reloads everything from the raw files (write_disposition="replace"), so the database is
 always a pure function of the raw files: fix a parser, rerun, done.
 """
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 from .settings import BASE
 
-VIEWS_SQL = Path(__file__).resolve().parent / "sql" / "views.sql"
 # Schema inside the database. Must differ from the .duckdb file name, which DuckDB uses as
-# the catalog name ("renaissance.renaissance" would be ambiguous).
+# the catalog name ("renaissance.renaissance" would be ambiguous). The dbt models are built here
+# too, and their views name tables as "renaissance"."game"."...", so keep the file's name.
 DATASET = "game"
 
-# Tables the views use that only some players have rows for (no newsletters yet, no claims, no
-# ally's reference, no saved orders). They're created empty so the views and questions still run.
+# Tables the dbt models use that only some players have rows for (no newsletters yet, no claims,
+# no ally's reference, no saved orders). They're created empty so the models and questions still run.
 OPTIONAL_TABLES = {
     "claim_market": "source_id text, claim_id text, game_date text, location text, side text, item text, bq double, "
                     "price bigint, location_key text",
@@ -49,12 +45,15 @@ OPTIONAL_TABLES = {
 }
 
 
-def create_empty_tables(con, tables: dict[str, list[dict]], types: dict[str, str]) -> None:
+DUCKDB_TYPES = {"bigint": "BIGINT", "double": "DOUBLE", "bool": "BOOLEAN", "text": "VARCHAR"}
+
+
+def create_empty_tables(con, tables: dict[str, list[dict]]) -> None:
     """Create each OPTIONAL_TABLES table that has no rows this run (replacing any stale copy)."""
     for name, cols in OPTIONAL_TABLES.items():
         if tables.get(name):
             continue
-        col_defs = ", ".join(f'"{c}" {types[t]}' for c, t in (col.split() for col in cols.split(", ")))
+        col_defs = ", ".join(f'"{c}" {DUCKDB_TYPES[t]}' for c, t in (col.split() for col in cols.split(", ")))
         con.execute(f'DROP TABLE IF EXISTS "{name}"')
         con.execute(f'CREATE TABLE "{name}" ({col_defs})')
 
@@ -80,12 +79,12 @@ def infer_columns(rows: list[dict]) -> dict[str, str]:
     return cols
 
 
-def load_duckdb(tables: dict[str, list[dict]], db_path: Path) -> None:
+def load_duckdb(tables: dict[str, list[dict]], db_path: Path, pipelines_dir: Path = BASE / ".dlt_pipelines") -> None:
     import dlt
     import duckdb
 
     pipeline = dlt.pipeline(pipeline_name="renaissance", destination=dlt.destinations.duckdb(str(db_path)),
-                            dataset_name=DATASET, pipelines_dir=str(BASE / ".dlt_pipelines"))
+                            dataset_name=DATASET, pipelines_dir=str(pipelines_dir))
 
     def resources():
         for name, rows in tables.items():
@@ -97,37 +96,12 @@ def load_duckdb(tables: dict[str, list[dict]], db_path: Path) -> None:
     print(info)
     with duckdb.connect(str(db_path)) as con:
         con.execute(f"SET schema = '{DATASET}'")
-        create_empty_tables(con, tables, {"bigint": "BIGINT", "double": "DOUBLE", "bool": "BOOLEAN", "text": "VARCHAR"})
-        con.execute(VIEWS_SQL.read_text(encoding="utf-8"))
+        create_empty_tables(con, tables)
 
 
-def load_sqlite(tables: dict[str, list[dict]], db_path: Path) -> None:
-    sql_type = {"bigint": "INTEGER", "double": "REAL", "bool": "INTEGER", "text": "TEXT"}
-    if db_path.exists():
-        db_path.unlink()
-    con = sqlite3.connect(db_path)
-    for name, rows in tables.items():
-        if not rows:
-            continue
-        cols = infer_columns(rows)
-        col_defs = ", ".join(f'"{c}" {sql_type[t]}' for c, t in cols.items())
-        col_names = ", ".join(f'"{c}"' for c in cols)
-        placeholders = ", ".join("?" for _ in cols)
-        con.execute(f'CREATE TABLE "{name}" ({col_defs})')
-        con.executemany(f'INSERT INTO "{name}" ({col_names}) VALUES ({placeholders})',
-                        [tuple(r.get(c) for c in cols) for r in rows])
-        print(f"  {name:28s} {len(rows):5d} rows")
-    create_empty_tables(con, tables, sql_type)
-    con.executescript(VIEWS_SQL.read_text(encoding="utf-8"))
-    con.commit()
-    con.close()
-
-
-def connect(backend: str, db_path: Path):
-    """Open the database for querying, with the dataset as the default schema."""
-    if backend == "duckdb":
-        import duckdb
-        con = duckdb.connect(str(db_path), read_only=True)
-        con.execute(f"SET schema = '{DATASET}'")
-        return con
-    return sqlite3.connect(db_path)
+def connect(db_path: Path):
+    """Open the database read-only for querying, with the dataset as the default schema."""
+    import duckdb
+    con = duckdb.connect(str(db_path), read_only=True)
+    con.execute(f"SET schema = '{DATASET}'")
+    return con

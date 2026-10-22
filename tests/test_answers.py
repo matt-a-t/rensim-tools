@@ -5,19 +5,14 @@ alter an answer, regenerate them and review the diff:
 
     UPDATE_ANSWERS=1 python -m unittest tests.test_answers
 """
-import contextlib
-import io
 import json
 import os
-import tempfile
 import unittest
-from pathlib import Path
 
 from renaissance.ask import load_questions
-from renaissance.load import connect, load_sqlite
-from renaissance.run import parse_all
+from renaissance.load import connect
 
-from . import FIXTURES
+from . import FIXTURES, fixture_db
 
 EXPECTED = FIXTURES / "expected_answers.json"
 
@@ -34,19 +29,11 @@ def answers(con) -> dict[str, list[list]]:
 class SavedAnswers(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        db = Path(cls.tmp.name) / "test.sqlite"
-        with contextlib.redirect_stdout(io.StringIO()):
-            load_sqlite(parse_all(), db)
-        con = connect("sqlite", db)
+        con = connect(fixture_db())
         cls.got = answers(con)
         con.close()
         if os.environ.get("UPDATE_ANSWERS"):
             EXPECTED.write_text(json.dumps(cls.got, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
 
     def test_same_answers(self):
         expected = json.loads(EXPECTED.read_text(encoding="utf-8"))

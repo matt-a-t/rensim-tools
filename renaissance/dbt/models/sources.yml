@@ -1,0 +1,69 @@
+# The tables `rensim run` loads (renaissance/load.py): everything the models read. In the SQL,
+# {{ source('game', 'turn_market') }} names one of these.
+version: 2
+
+sources:
+  - name: game
+    schema: game
+    description: Tables loaded by `rensim run` from the raw files, one load per run.
+    tables:
+      - name: sources
+        description: Every file loaded once, with its kind, game date, real date and reliability.
+        columns:
+          - name: source_id
+            data_tests: [unique, not_null]
+      - name: my_settings
+        description: Your account, family and home from rensim.toml; one row.
+      - name: dim_places
+        description: >
+          Each place once, keyed by a normalized spelling ('PEGU' and 'Pegu' are both 'pegu'),
+          with its best display name, coordinates when a turn report gave them, miles from home and
+          every spelling seen. Built by normalize.py.
+        columns:
+          - name: place_key
+            data_tests: [unique, not_null]
+          - name: miles_from_home
+            description: Straight-line miles from `home` in rensim.toml.
+      - name: dim_personae
+        description: >
+          Each character once, by game ID, with the latest name, family and location seen.
+          `is_mine` marks characters in your own turn reports. Built by normalize.py.
+        columns:
+          - name: persona_id
+            data_tests: [unique, not_null]
+      - name: dim_families
+        description: >
+          Each family once, with every spelling seen and how often it appears in official sources
+          vs player claims. Confirmed variant spellings are merged through data/aliases/families.csv.
+          Built by normalize.py.
+        columns:
+          - name: family_key
+            data_tests: [unique, not_null]
+      - name: turn_persona_status
+        description: Your character per turn report.
+      - name: turn_persona_skills
+        description: Skill per character per turn report.
+      - name: turn_persona_assets
+        description: Asset per character per turn report.
+      - name: turn_presence
+        description: Character seen inside or outside a location (anyone's), with troops and ships.
+      - name: turn_lookups
+        description: Answer to a "where is X" order, with miles from home.
+      - name: turn_market
+        description: Good demanded or supplied per location per turn report, with price.
+      - name: turn_location_officials
+        description: Office holder per location per turn report.
+      - name: news_events
+        description: Event in a GM newsletter; unmatched sentences are kept as event_type `other`.
+      - name: news_sieges
+        description: Siege reported in a GM newsletter.
+      - name: news_siege_results
+        description: Result of a siege reported in a GM newsletter.
+      - name: orders_sent
+        description: Each order code you sent, with its plain-English meaning.
+      - name: claims
+        description: Claim from a player publication, with its verbatim quote.
+      - name: claim_market
+        description: Market price claimed in a player publication.
+      - name: ref_city_market
+        description: Market price from an ally's compiled reference, dated per city.

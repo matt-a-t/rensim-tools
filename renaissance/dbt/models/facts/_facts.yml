@@ -1,0 +1,272 @@
+# Facts: one row per measurement or event, as keys into the dimensions plus measures.
+# Each fact states its grain (what one row means) and is tested unique at it; every key must find
+# its dimension row (NULL keys are allowed: a key that's set must exist). Snapshot measures, like
+# morale restated every turn, are read at a point in time and never summed across turns.
+version: 2
+
+models:
+  - name: fact_persona_status
+    description: >
+      Periodic snapshot. Grain: one persona in one turn report. Names come from dim_personae.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, persona_id]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: persona_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
+      - name: location_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+
+  - name: fact_persona_skills
+    description: >
+      Periodic snapshot. Grain: one skill of one persona in one turn report.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, persona_id, skill]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: persona_id
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
+
+  - name: fact_persona_assets
+    description: >
+      Periodic snapshot. Grain: one asset of one persona in one turn report.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, persona_id, asset]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: persona_id
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
+
+  - name: fact_presence
+    description: >
+      Periodic snapshot. Grain: one persona seen inside or outside one location in one turn
+      report, with the troops and ships seen.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, location_key, inside_or_outside, persona_id]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: persona_id
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
+      - name: location_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: family_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+      - name: inside_or_outside
+        data_tests:
+          - accepted_values: {arguments: {values: [inside, outside]}}
+
+  - name: fact_lookups
+    description: >
+      Transaction. Grain: one lookup answered in one turn report. `place` is kept as asked,
+      because a lookup that found nothing (is_set_up false) names no real place.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, place]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: place_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: family_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+
+  - name: fact_market_prices
+    description: >
+      Periodic snapshot. Grain: one price for one good, one side, at one place, from one source
+      (and one claim, for player publications). Three origins, told apart by
+      dim_sources.reliability: turn reports (official), an ally's reference (ally_compiled),
+      player claims (player_claim).
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, claim_id, place_key, side, item]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: claim_id
+        description: The claim, for prices from player publications; NULL otherwise.
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: place_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: side
+        data_tests:
+          - accepted_values: {arguments: {values: [demand, supply]}}
+
+  - name: fact_events
+    description: >
+      Transaction. Grain: one event in one GM newsletter. Newsletter actors have no persona ID,
+      so actor names stay on the fact; families are keyed.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, seq]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: place_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: place_from_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: place_to_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: actor_family_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+      - name: target_family_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+      - name: route_key
+        description: Both ends of a road as place keys, alphabetical ('nan|pegu'), so direction doesn't matter.
+
+  - name: fact_sieges
+    description: >
+      Transaction. Grain: one siege reported in one GM newsletter, with its result when
+      reported.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, place_key]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: place_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: besieger_family_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
+
+  - name: fact_orders
+    description: >
+      Transaction. Grain: one order code sent in one month's orders file. start_location is
+      kept for any place the dimension doesn't know.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, line_no, seq]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: persona_id
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
+      - name: start_location_key
+        description: >
+          Not tested against dim_places: orders aren't sightings, so they don't add places.
+
+  - name: fact_claims
+    description: >
+      Transaction. Grain: one claim in one player publication. Claims name people as the page
+      does (no persona ID), and `place` keeps the page's wording for a place no key was made
+      from. turn_month is NULL for claims dated only by year.
+    data_tests:
+      - unique_grain:
+          arguments:
+            columns: [source_id, claim_id]
+    columns:
+      - name: source_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('dim_sources')", field: source_id}}
+      - name: claim_id
+        data_tests: [not_null]
+      - name: turn_month
+        data_tests:
+          - relationships: {arguments: {to: "ref('dim_turns')", field: turn_month}}
+      - name: claim_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [office, title_dispute, action, history, family, heraldry, location_report]
+      - name: hedge
+        description: >
+          How firmly the publication states it, from its own wording: asserted, reported,
+          rumored or denied.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [asserted, reported, rumored, denied]
+      - name: quote
+        description: The exact words; `rensim claims` fails if they aren't in the source text.
+        data_tests: [not_null]
+      - name: place_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: subject_place_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_places')", field: place_key}}
+      - name: subject_family_key
+        data_tests:
+          - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}

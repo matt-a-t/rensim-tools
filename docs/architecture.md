@@ -36,9 +36,9 @@ flowchart TB
 
   aliases[/"data/aliases/families.csv"/]
   normalize["normalize.py<br/>place keys, family aliases, dimension tables,<br/>road routes, distances, coordinates"]
-  load["load.py<br/>dlt → DuckDB (or sqlite3)"]
+  load["load.py<br/>dlt → DuckDB"]
   db[("data/renaissance.duckdb<br/>generated, not committed")]
-  views["renaissance/sql/views.sql<br/>current state, turn-over-turn changes,<br/>claims next to the official record"]
+  views["dbt models in renaissance/dbt/<br/>star schema: dimensions, facts, analysis views<br/>+ tests and a docs site"]
   ask["rensim ask + renaissance/sql/questions.sql"]
   answers(["answers"])
 
@@ -51,7 +51,8 @@ flowchart TB
 
 Slanted boxes are files, rectangles are code, the cylinder is the database.
 
-`rensim run` runs everything top to bottom. `rensim ask` only reads.
+`rensim run` runs everything top to bottom, ending with `dbt run` (build the views) and
+`dbt test`. `rensim ask` only reads.
 
 ## Components
 
@@ -64,15 +65,16 @@ Slanted boxes are files, rectangles are code, the cylinder is the database.
 | `renaissance/parse_reference.py` | Ally reference -> `ref_*` tables | Reads an ally's compiled Word document of GM data (python-docx): cities and characters, each city with its own as-of date |
 | `renaissance/claims.py` | Claims files -> rows | Validates each file and checks every quote is really in the source text |
 | `renaissance/normalize.py` | Make sources joinable | `*_key` columns for places and families; `dim_places`, `dim_personae`, `dim_families` |
-| `renaissance/load.py` | Rows -> database | dlt into DuckDB, with explicit column types; sqlite3 fallback with the same tables |
-| `renaissance/sql/views.sql` | Meaning on top of rows | Star schema: dimensions, facts, then analysis views where snapshots become "now" and "what changed" and claims sit beside official facts |
+| `renaissance/load.py` | Rows -> database | dlt into DuckDB, with explicit column types |
+| `renaissance/dbt/` | Meaning on top of rows | A dbt project, one model (a `SELECT`) per view. Star schema: dimensions, facts, then analysis views where snapshots become "now" and "what changed" and claims sit beside official facts. YAML beside the models holds descriptions and tests |
+| `renaissance/dbt_runner.py` | Runs dbt | `rensim dbt ...`: any dbt command, pointed at your database, in its own process; working files in `.dbt/` |
 | `renaissance/sql/questions.sql`, `ask.py` | Answers | Saved questions plus ad hoc SQL |
 | `tests/` | Trust | Run against a made-up account in `tests/fixtures/`, so no real game files are needed; keep tests against your own files in your data repo |
-| `.github/workflows/check.yml` | CI | Every push: tests, full load, all questions; answers on the run's summary page |
+| `.github/workflows/test.yml` | CI | Every push: tests, every command on the fixtures, `dbt build`, the dbt docs site as a download |
 
 ## Data model
 
-`views.sql` is a star schema in three layers. **Dimensions** hold the descriptive attributes you
+The dbt models are a star schema in three layers, one folder each under `renaissance/dbt/models/`. **Dimensions** hold the descriptive attributes you
 filter and label by: who, where, when, which source. **Facts** hold one row per measurement or
 event, as keys into the dimensions plus measures. **Analysis views** (`v_*`) answer the everyday
 questions from facts and dimensions. Every fact shares the same (conformed) dimensions, so
@@ -124,8 +126,12 @@ dimension to its history.
 | `fact_orders` | transaction | order code sent | `orders_sent` |
 | `fact_claims` | transaction | claim in a publication | `claims` |
 
-`tests/test_star.py` checks every fact is unique at its grain and every key finds its dimension
-row, so a parser change that breaks the model fails a test.
+The dbt tests (in the YAML beside the models) check every fact is unique at its grain
+(`unique_grain`, a test in `renaissance/dbt/tests/generic/`), every key finds its dimension row
+(`relationships`), and categories such as `reliability` and `hedge` hold known values
+(`accepted_values`), so a parser change that breaks the model fails a test. `rensim run` runs them
+after every load, and `tests/test_star.py` runs them on the fixtures; it also checks the type 2
+history on made-up scenarios, which reads better in Python.
 
 **Snapshot measures don't add up across turns.** Morale restated every turn is compared or read
 at a point in time, never summed; transaction rows can be counted.
@@ -183,9 +189,18 @@ events that match no template are kept as `other` with their full text. `rensim 
 reports shared by other players are committed with that block removed. Saved webmail pages
 aren't committed as-is.
 
-**Plain tools, two backends.** Python, regex, SQL. DuckDB (via dlt) is the main database;
-the same tables and SQL also run on Python's built-in sqlite3. Comparing the two backends'
-answers (`rensim compare`, run in CI) catches SQL dialect differences.
+**Plain tools, one database.** Python, regex, SQL. dlt loads DuckDB, and dbt builds the views on
+it. dbt earns its place once the views are a model rather than a script: each view is its own
+file, `ref()` gives the build order, tests sit beside the SQL they check, and the docs site is
+generated from the same descriptions. An earlier version also ran on SQLite and compared the two
+engines' answers; dbt's SQLite support is thin, so DuckDB is the only database now.
+
+**Every model is a view.** Views store a query, not rows, so the database holds only the loaded
+tables and an answer can never be stale. The data is small enough that recomputing is instant.
+
+**Models build, then tests run.** `rensim run` runs `dbt run` and then `dbt test`, not `dbt build`,
+which would skip every view downstream of a failing test. A bad row is reported without taking the
+views away; CI runs `dbt build`, where stopping is the point.
 
 ## Adding things
 
@@ -197,11 +212,11 @@ answers (`rensim compare`, run in CI) catches SQL dialect differences.
 | A player publication | Raw file -> `rensim extract` -> claims file (see `docs/claims_extraction.md`) |
 | A spelling alias | A row in `data/aliases/families.csv` |
 | A question | A `-- name:` block in `renaissance/sql/questions.sql` |
+| A view | A model in `renaissance/dbt/models/<layer>/`, with its description and tests in that folder's `.yml` |
 
 ## Where it's headed
 
 - **Automatic claim extraction**: run `docs/claims_extraction.md` through the Claude API when a
   publication lands; the quote check stays the safety net.
 - **Entity resolution** with Splink once there are enough names to need it.
-- **dbt** in place of `views.sql` when the model outgrows one file.
 - **An MCP server** over the database, so questions can be asked in plain English.
