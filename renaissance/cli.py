@@ -9,6 +9,7 @@ with rensim.toml), or anywhere below it.
     rensim training [--skills a,b]      best training orders for personae starting together
     rensim extract                      text from new player publications (needs OCR tools)
     rensim claims                       claims files are valid and every quote is in its source
+    rensim match [--apply | --score F]  propose look-alike names to review, then keep the ones you accept
     rensim config                       show the settings in use
 
 `python -m renaissance ...` does the same.
@@ -20,7 +21,7 @@ import sys
 
 COMMANDS = {"run": "run", "ask": "ask", "quality": "quality", "dbt": "dbt_runner",
             "orders": "orders", "training": "training", "extract": "extract_text",
-            "claims": "claims"}
+            "claims": "claims", "match": "match"}
 
 
 def show_config() -> int:

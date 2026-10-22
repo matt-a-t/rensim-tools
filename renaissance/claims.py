@@ -13,12 +13,16 @@ import json
 import re
 from pathlib import Path
 
+from .common import place_key
 from .settings import DATA
 
 CLAIMS = DATA / "claims"
 EXTRACTED = DATA / "extracted"
 TRANSCRIBED = DATA / "transcribed"
-FAMILY_ALIASES = DATA / "aliases" / "families.csv"
+ALIASES = DATA / "aliases"
+FAMILY_ALIASES = ALIASES / "families.csv"
+PLACE_ALIASES = ALIASES / "places.csv"
+PERSONA_ALIASES = ALIASES / "personae.csv"
 
 CLAIM_TYPES = {"office", "title_dispute", "action", "history", "family", "heraldry", "location_report"}
 HEDGES = {"asserted", "reported", "rumored", "denied"}
@@ -68,12 +72,29 @@ def check_quotes(doc: dict) -> list[str]:
             for c in doc["claims"] if squash(c["quote"]) not in text]
 
 
+def read_aliases(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 def load_family_aliases() -> dict[str, str]:
-    """ALIAS -> CANONICAL, from data/aliases/families.csv (confirmed spelling variants only)."""
-    if not FAMILY_ALIASES.exists():
-        return {}
-    with FAMILY_ALIASES.open(encoding="utf-8") as f:
-        return {r["alias"].strip().upper(): r["canonical"].strip().upper() for r in csv.DictReader(f)}
+    """ALIAS -> CANONICAL, from data/aliases/families.csv (variants you accepted in `rensim match`)."""
+    return {r["alias"].strip().upper(): r["canonical"].strip().upper() for r in read_aliases(FAMILY_ALIASES)}
+
+
+def load_place_aliases() -> dict[str, str]:
+    """alias key -> canonical key, from data/aliases/places.csv ('Edinburg' -> 'edinburgh')."""
+    return {place_key(r["alias"]): place_key(r["canonical"]) for r in read_aliases(PLACE_ALIASES)}
+
+
+def load_persona_aliases() -> dict[tuple[str, str], int]:
+    """(given name lowercased, family key) -> persona ID, from data/aliases/personae.csv: names
+    written without an ID (newsletters, claims) that you matched to a character."""
+    families = load_family_aliases()
+    return {(r["given"].strip().lower(), families.get(f := r["family"].strip().upper(), f)): int(r["persona_id"])
+            for r in read_aliases(PERSONA_ALIASES)}
 
 
 def load_claims() -> dict[str, list[dict]]:

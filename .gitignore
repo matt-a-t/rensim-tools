@@ -2,6 +2,8 @@
 /data/
 /orders/
 /rensim.toml
+# written by `rensim match` when CI or you run it on the test fixtures
+/tests/fixtures/data/aliases/proposed.csv
 # generated databases and dlt working state
 *.duckdb
 *.duckdb.wal

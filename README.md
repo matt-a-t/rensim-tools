@@ -14,6 +14,7 @@ your data folder                              rensim-tools
   data/raw/newsletters/  GM newsletters         rensim orders   check orders, print the text to email
   data/raw/player_publications/  propaganda     rensim training best training for personae together
   data/claims/*.json claims from publications   rensim quality  data checks; rensim claims  quote checks
+  data/aliases/      names you matched          rensim match    propose look-alike names to review
   orders/            the orders you sent        rensim dbt      dbt on the views: test, docs...
 ```
 
@@ -99,6 +100,31 @@ to get its text, then write `data/claims/<name>.json` following
 [`docs/claims_extraction.md`](docs/claims_extraction.md). `rensim claims` fails if any claim quotes
 words that aren't in the source.
 
+## Matching names
+
+The same family, place or character is often written differently: OCR typos in a scanned
+publication, regional spellings, a newsletter naming a character without their game ID. Look-alike
+names can also be different families (Habsburg, HABSBOURG and HAPSBOURG hold separate towers in
+one game), so nothing is merged until you say so:
+
+```bash
+pip install "rensim-tools[match]"   # adds Splink
+rensim match                        # writes data/aliases/proposed.csv
+```
+
+Each row of `proposed.csv` is a pair with a match probability and why (spelling, places in
+common, where each name was seen). Put `y` or `n` in its `decision` column, then
+`rensim match --apply`: accepted pairs go to `data/aliases/families.csv`, `places.csv` or
+`personae.csv`, rejected ones to `rejected.csv` so they aren't proposed again. Run `rensim run`
+to use them. Two different names that both appear in the GM's own reports are never proposed: the
+GM doesn't misspell.
+
+To see how well it does on your game, label some pairs by hand in a CSV
+(`kind,name,match,persona_id,is_match`, with `kind` one of family / place / persona and
+`is_match` 1 or 0) and run `rensim match --score labels.csv` for precision and recall.
+`--threshold` changes how likely a pair must be to be proposed (default 0.1). How the scoring
+works is explained at the top of [`renaissance/match.py`](renaissance/match.py).
+
 ## Tables
 
 | Table | One row per |
@@ -146,15 +172,16 @@ with a lineage graph, to `.dbt/target/static_index.html`.
   leaves the parser. Still, keep your data folder private.
 - **Coordinates are degrees.minutes.** `N55.57` is 55°57' = 55.95°.
 - **Place names join by key.** `PEGU`/`Pegu` and `pNompenh`/`Pnompenh` are the same place;
-  `dim_places.spellings` lists every variant seen.
-- **Characters are keyed by game ID**, however the name is written.
+  `dim_places.spellings` lists every variant seen, including ones you matched (`rensim match`).
+- **Characters are keyed by game ID**, however the name is written. Newsletter actors and
+  claim subjects get one (`actor_persona_id`, `subject_persona_id`) once you've matched the name.
 - **One account, many families.** Every turn row carries `account` and `player_family`, so a
   change of family keeps its own history; reports allies share with you load alongside yours.
 
 ## Developing
 
 ```bash
-pip install -e .
+pip install -e ".[match]"
 python -m unittest      # runs against the made-up account in tests/fixtures
 ```
 

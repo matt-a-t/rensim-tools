@@ -34,7 +34,7 @@ sources:
       - name: dim_families
         description: >
           Each family once, with every spelling seen and how often it appears in official sources
-          vs player claims. Confirmed variant spellings are merged through data/aliases/families.csv.
+          vs player claims. Variant spellings you accepted (`rensim match`) are merged through data/aliases/families.csv.
           Built by normalize.py.
         columns:
           - name: family_key
