@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 extract = ["Pillow"]
+llm = ["anthropic==2.1.0"]
 match = ["splink==5.0.0"]
 
 [project.scripts]
@@ -28,4 +29,4 @@ rensim = "renaissance.cli:main"
 packages = ["renaissance"]
 
 [tool.setuptools.package-data]
-renaissance = ["sql/*.sql", "dbt/**/*.sql", "dbt/**/*.yml"]
+renaissance = ["sql/*.sql", "dbt/**/*.sql", "dbt/**/*.yml", "claims_extraction.md"]

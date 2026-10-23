@@ -5,7 +5,7 @@ Player newsletters and proclamations are propaganda: written in character, often
 Each statement becomes a **claim**: who said what, about whom, how confidently, quoted from the source.
 
 This file is both the guide for extracting claims by hand (in a Claude session) and the
-instructions a future automatic step (Claude API) will follow. Output goes to
+instructions `rensim extract-claims` sends to the Claude API. Output goes to
 `data/claims/<source>.json`, one file per publication, reviewed in a pull request like code.
 
 ## Workflow
@@ -14,7 +14,8 @@ instructions a future automatic step (Claude API) will follow. Output goes to
 2. `rensim extract` writes the machine text to `data/extracted/`.
 3. If the OCR is poor (photos, faint scans), write a corrected copy to `data/transcribed/`
    (same path). Claims are checked against the transcription when one exists.
-4. Write `data/claims/<source>.json`. `rensim claims` fails if any quote isn't found
+4. Write `data/claims/<source>.json`, or let `rensim extract-claims` draft it in
+   `data/claims/drafts/` and move it up once reviewed. `rensim claims` fails if any quote isn't found
    word-for-word in the source text, so claims can't drift from what the page says.
 
 ## File format

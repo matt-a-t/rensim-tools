@@ -1,6 +1,6 @@
 """Load the claims files (data/claims/*.json) written from player publications.
 
-See docs/claims_extraction.md for the format. Every claim keeps its verbatim quote, and
+See renaissance/claims_extraction.md for the format. Every claim keeps its verbatim quote, and
 check_quotes() verifies each quote really appears in the source text, so a claim can't say
 more than the page does.
 
@@ -54,22 +54,35 @@ def validate(doc: dict) -> list[str]:
             problems.append(f"source.{key} is missing")
     for c in doc.get("claims", []):
         cid = c.get("id", "?")
-        problems += [f"{cid}: {k} is missing" for k in REQUIRED if not c.get(k)]
-        if c.get("type") not in CLAIM_TYPES:
-            problems.append(f"{cid}: unknown type {c.get('type')!r}")
-        if c.get("hedge") not in HEDGES:
-            problems.append(f"{cid}: unknown hedge {c.get('hedge')!r}")
+        problems += validate_claim(c)
         if cid in seen:
             problems.append(f"{cid}: duplicate id")
         seen.add(cid)
     return problems
 
 
+def validate_claim(c: dict) -> list[str]:
+    """Problems with one claim: missing fields, unknown type or hedge."""
+    cid = c.get("id", "?")
+    problems = [f"{cid}: {k} is missing" for k in REQUIRED if not c.get(k)]
+    if c.get("type") not in CLAIM_TYPES:
+        problems.append(f"{cid}: unknown type {c.get('type')!r}")
+    if c.get("hedge") not in HEDGES:
+        problems.append(f"{cid}: unknown hedge {c.get('hedge')!r}")
+    return problems
+
+
+def misquote(c: dict, text: str) -> str | None:
+    """Why a claim's quote isn't in the source text (already squashed), or None if it is."""
+    if squash(c.get("quote") or "") not in text:
+        return f"{c.get('id', '?')}: quote not in source: {c.get('quote')!r}"
+    return None
+
+
 def check_quotes(doc: dict) -> list[str]:
     """Claims whose quote isn't found word-for-word (ignoring whitespace) in the source text."""
     text = squash(source_text(doc["source"]["file"]))
-    return [f"{c['id']}: quote not in source: {c['quote']!r}"
-            for c in doc["claims"] if squash(c["quote"]) not in text]
+    return [m for c in doc["claims"] if (m := misquote(c, text))]
 
 
 def read_aliases(path: Path) -> list[dict]:

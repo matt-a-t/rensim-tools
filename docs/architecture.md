@@ -28,7 +28,7 @@ flowchart TB
     pubs[/"data/raw/player_publications/<br/>PDFs, scans, photos, Word files"/]
     extract["extract_text.py<br/>text layer · OCR · LibreOffice"]
     text[/"data/extracted/ machine text (committed)<br/>data/transcribed/ hand-corrected, where OCR is poor"/]
-    session["read in a Claude session<br/>following docs/claims_extraction.md"]
+    session["read in a Claude session, or drafted by<br/>rensim extract-claims (Claude API),<br/>following claims_extraction.md"]
     cjson[/"data/claims/*.json<br/>one claim per fact + verbatim quote"/]
     pclaims["claims.py"]
     pubs --> extract --> text --> session --> cjson --> pclaims
@@ -223,14 +223,12 @@ views away; CI runs `dbt build`, where stopping is the point.
 | A new turn or GM newsletter | Drop the file in `data/raw/turns/` or `data/raw/newsletters/`, run `rensim run` |
 | A new turn-report line type | Add a branch in `parse_location` / `parse_personae`, plus a test with the real line |
 | A new newsletter event type | Add a template to `EVENT_TEMPLATES` in `parse_news.py`; count it against the raw text in a test |
-| A player publication | Raw file -> `rensim extract` -> claims file (see `docs/claims_extraction.md`) |
+| A player publication | Raw file -> `rensim extract` -> claims file by hand or `rensim extract-claims` (see `renaissance/claims_extraction.md`) |
 | A spelling alias | `rensim match`, mark the proposal y, `rensim match --apply`; or add a row to a `data/aliases/` file by hand |
 | A question | A `-- name:` block in `renaissance/sql/questions.sql` |
 | A view | A model in `renaissance/dbt/models/<layer>/`, with its description and tests in that folder's `.yml` |
 
 ## Where it's headed
 
-- **Automatic claim extraction**: run `docs/claims_extraction.md` through the Claude API when a
-  publication lands; the quote check stays the safety net.
 - **A review page for `rensim match`** in place of editing `proposed.csv`.
 - **An MCP server** over the database, so questions can be asked in plain English.
