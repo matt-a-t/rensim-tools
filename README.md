@@ -97,8 +97,26 @@ Other players' newsletters and proclamations become **claims**, kept apart from 
 labelled with how firmly each is stated. Save the original in `data/raw/player_publications/`, run
 `rensim extract` (needs Tesseract, LibreOffice, poppler and `pip install "rensim-tools[extract]"`)
 to get its text, then write `data/claims/<name>.json` following
-[`docs/claims_extraction.md`](docs/claims_extraction.md). `rensim claims` fails if any claim quotes
+[`renaissance/claims_extraction.md`](renaissance/claims_extraction.md). `rensim claims` fails if any claim quotes
 words that aren't in the source.
+
+Claude can write the first draft for you:
+
+```bash
+pip install "rensim-tools[llm]"      # adds the Anthropic SDK; set ANTHROPIC_API_KEY
+rensim extract-claims player_publications/grimani_1547-03.pdf
+```
+
+It sends the text and the same guide to the Claude API and writes `data/claims/drafts/<name>.json`.
+Any claim with a quote that isn't in the source, or with a missing field or unknown type or hedge, is
+dropped and listed. Drafts aren't loaded, so review the draft, fix it, and move it up to `data/claims/`.
+`--game-date`, `--publisher`, `--family` and similar flags set the source details when the text doesn't give them.
+
+To see how good the drafts are, score one against a claims file you wrote by hand:
+`rensim eval-claims data/claims/x.json --draft data/claims/drafts/x.json`. Leave out `--draft` to
+extract the publication again and score that. A drafted claim matches a hand-written one when it has
+the same type and the quotes overlap. Precision is the share of drafted claims that match, and recall
+is the share of yours it found. Hedges are compared on matched pairs.
 
 ## Matching names
 

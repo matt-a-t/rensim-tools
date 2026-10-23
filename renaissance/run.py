@@ -25,7 +25,7 @@ DB = DATA / "renaissance.duckdb"
 def parse_all() -> dict[str, list[dict]]:
     parsed = []
     # Turn reports and GM newsletters are parsed here; player publications come in through
-    # data/claims/ (see docs/claims_extraction.md) and reference documents aren't loaded.
+    # data/claims/ (see renaissance/claims_extraction.md) and reference documents aren't loaded.
     for path in sorted(p for p in RAW.rglob("*") if p.is_file()
                        and not {"player_publications", "reference"} & set(p.parts)):
         head = path.read_bytes()[:400].decode("cp1252", errors="replace")

@@ -28,6 +28,7 @@ jobs:
           rensim ask
           rensim quality
           rensim claims
+          rensim eval-claims eval/test_herald.json --draft eval/test_herald.json
           rensim orders orders/tst_1547-04.txt
           rensim training
           rensim match

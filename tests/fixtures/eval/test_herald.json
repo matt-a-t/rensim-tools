@@ -1,0 +1,74 @@
+{
+ "source": {
+  "source_id": "pub:test_herald",
+  "file": "player_publications/test_herald.pdf",
+  "kind": "player_newsletter",
+  "title": "The King's Landing Herald",
+  "publisher": "Petyr Baelish",
+  "publisher_family": "BAELISH",
+  "game_date": "1547-03"
+ },
+ "claims": [
+  {
+   "id": "c1",
+   "type": "office",
+   "subject": {"name": "Eddard Stark", "given": "Eddard", "family": "STARK"},
+   "predicate": "holds_office",
+   "object": "Hand of the King",
+   "hedge": "asserted",
+   "quote": "Lord Eddard Stark, Hand of the King"
+  },
+  {
+   "id": "c2",
+   "type": "action",
+   "subject": {"name": "Eddard Stark", "given": "Eddard", "family": "STARK"},
+   "predicate": "granted_lands",
+   "object": "the Night's Watch",
+   "place": "Kelso",
+   "hedge": "asserted",
+   "quote": "rode into Kelso this month and granted lands to the Night's Watch"
+  },
+  {
+   "id": "c3",
+   "type": "action",
+   "subject": {"name": "Stannis Baratheon", "given": "Stannis", "family": "BARATHEON"},
+   "predicate": "captured",
+   "object": "Dragonstone",
+   "place": "Dragonstone",
+   "hedge": "rumored",
+   "quote": "It is said that Lord Stannis Baratheon has taken Dragonstone"
+  },
+  {
+   "id": "c4",
+   "type": "office",
+   "subject": {"name": "Petyr Baelish", "given": "Petyr", "family": "BAELISH"},
+   "predicate": "holds_office",
+   "object": "Magistrate of Harrenhal",
+   "place": "Harrenhal",
+   "hedge": "rumored",
+   "quote": "Lord Petyr Baelish holds the Magistracy of Harrenhal"
+  },
+  {
+   "id": "c5",
+   "type": "office",
+   "subject": {"name": "Petyr Baelish", "given": "Petyr", "family": "BAELISH"},
+   "predicate": "holds_office",
+   "object": "Magistrate of Harrenhal",
+   "place": "Harrenhal",
+   "hedge": "denied",
+   "claimed_by": "House BAELISH",
+   "quote": "House BAELISH denies that Lord Petyr Baelish holds the Magistracy of Harrenhal"
+  },
+  {
+   "id": "c6",
+   "type": "location_report",
+   "subject": {"place": "Kelso"},
+   "predicate": "market",
+   "object": "horses demanded at 120",
+   "place": "Kelso",
+   "hedge": "reported",
+   "quote": "the market at Kelso buys horses for 120 ducats",
+   "data": {"demands": [{"item": "horses", "bq": 1.0, "price": 120}]}
+  }
+ ]
+}
