@@ -91,7 +91,7 @@ class Extract(unittest.TestCase):
 
     def test_command_writes_a_draft_and_keeps_it(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(llm_claims, "DRAFTS", Path(tmp)), \
-                patch.object(llm_claims, "make_client", lambda: FakeClient(REPLY)), \
+                patch.object(llm_claims, "make_client", lambda backend: FakeClient(REPLY)), \
                 contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(llm_claims.main(["player_publications/test_herald.pdf"]), 0)
             draft = json.loads((Path(tmp) / "test_herald.json").read_text(encoding="utf-8"))
@@ -99,6 +99,51 @@ class Extract(unittest.TestCase):
             self.assertIn("2 claim(s) written", out.getvalue())
             self.assertEqual(llm_claims.main(["player_publications/test_herald.pdf"]), 1)   # needs --force
             self.assertEqual(llm_claims.main(["player_publications/test_herald.pdf", "--force"]), 0)
+
+
+def cli_result(**kw):
+    """What `claude -p --output-format json` prints, as subprocess.run returns it."""
+    result = {"type": "result", "subtype": "success", "is_error": False, "structured_output": REPLY} | kw
+    return SimpleNamespace(returncode=0, stdout=json.dumps(result), stderr="")
+
+
+class ClaudeCodeBackend(unittest.TestCase):
+    def test_extracts_through_the_cli(self):
+        with patch.object(llm_claims.subprocess, "run", return_value=cli_result()) as run:
+            doc, rejected = extract("player_publications/test_herald.pdf", llm_claims.ClaudeCode("claude"))
+        self.assertEqual([c["id"] for c in doc["claims"]], ["c1", "c5"])
+        argv, kw = run.call_args
+        argv = argv[0]
+        self.assertEqual(argv[:2], ["claude", "-p"])
+        self.assertNotIn("--bare", argv)                      # bare mode skips the account login
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-opus-5-5")
+        self.assertEqual(json.loads(argv[argv.index("--json-schema") + 1]), llm_claims.SCHEMA)
+        self.assertEqual(argv[argv.index("--system-prompt-file") + 1], str(llm_claims.GUIDE))
+        self.assertEqual(argv[argv.index("--tools") + 1], "")
+        self.assertIn("granted lands to the Night's Watch", kw["input"])
+
+    def test_an_error_writes_nothing(self):
+        with patch.object(llm_claims.subprocess, "run",
+                          return_value=cli_result(is_error=True, subtype="error_during_execution", structured_output=None)):
+            with self.assertRaises(RuntimeError):
+                extract("player_publications/test_herald.pdf", llm_claims.ClaudeCode())
+        with patch.object(llm_claims.subprocess, "run",
+                          return_value=SimpleNamespace(returncode=1, stdout="", stderr="Not logged in")):
+            with self.assertRaisesRegex(RuntimeError, "Not logged in"):
+                extract("player_publications/test_herald.pdf", llm_claims.ClaudeCode())
+
+    def test_auto_prefers_an_api_key_then_claude_code(self):
+        def pick(env, claude):
+            with patch.dict(llm_claims.os.environ, env, clear=True), \
+                    patch.object(llm_claims.shutil, "which", lambda _: claude), \
+                    patch.dict("sys.modules", {"anthropic": SimpleNamespace(Anthropic=lambda: "api")}), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                return llm_claims.make_client("auto")
+        self.assertEqual(pick({"ANTHROPIC_API_KEY": "k"}, "/bin/claude"), "api")
+        self.assertIsInstance(pick({}, "/bin/claude"), llm_claims.ClaudeCode)
+        self.assertEqual(pick({}, None), "api")
+        with patch.object(llm_claims.shutil, "which", lambda _: None), contextlib.redirect_stderr(io.StringIO()):
+            self.assertIsNone(llm_claims.make_client("claude-code"))
 
 
 class Score(unittest.TestCase):
@@ -141,7 +186,7 @@ class Score(unittest.TestCase):
         self.assertIn("precision 1.00  recall 1.00  hedges agree 6 of 6", out.getvalue())
 
     def test_eval_command_extracts_without_a_draft(self):
-        with patch.object(llm_claims, "make_client", lambda: FakeClient(REPLY)), \
+        with patch.object(llm_claims, "make_client", lambda backend: FakeClient(REPLY)), \
                 contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(llm_claims.evaluate([str(GOLD_PATH)]), 0)
         # The fake keeps c1 (office) and c5 (location_report): both match, and nothing else is drafted.

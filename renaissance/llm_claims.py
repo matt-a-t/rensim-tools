@@ -10,7 +10,11 @@ follows claims_extraction.md, the same guide used by hand. Every claim it return
 checks `rensim claims` makes: one with a missing field, an unknown type or hedge, or a quote that
 isn't word for word in the source is dropped and listed, never written. The draft goes to
 data/claims/drafts/, which `rensim run` doesn't load: review it, fix it, and move it up to
-data/claims/ to use it. Needs `pip install "rensim-tools[llm]"` and an API key (ANTHROPIC_API_KEY).
+data/claims/ to use it.
+
+Two ways to reach Claude (--backend; auto picks the first that's set up):
+    api          the Claude API: `pip install "rensim-tools[llm]"` and ANTHROPIC_API_KEY
+    claude-code  the Claude Code CLI (`claude -p`), on the Claude account it's logged in to: no API key
 
 Scoring: the hand-written file is the answer key. A draft claim matches a hand-written one when
 they have the same type and their quotes overlap: one contains the other, or they share at least
@@ -22,7 +26,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -32,6 +39,7 @@ from .settings import RAW
 DRAFTS = CLAIMS / "drafts"
 GUIDE = Path(__file__).with_name("claims_extraction.md")
 MODEL = "claude-opus-5-5"
+CLI_TIMEOUT = 15 * 60  # seconds for one `claude -p` run
 OVERLAP = 0.5          # share of words two quotes must have in common to match (Jaccard)
 KINDS = ["player_newsletter", "proclamation", "player_letter"]
 SOURCE_FIELDS = ("source_id", "file", "kind", "title", "publisher", "publisher_family", "game_date", "real_date", "notes")
@@ -81,6 +89,8 @@ def publication_file(arg: str) -> str:
 
 def ask_claude(text: str, file: str, client, model: str = MODEL) -> dict:
     """Claude's reply for one publication: {"source": {...}, "claims": [...]} in SCHEMA's shape."""
+    if isinstance(client, ClaudeCode):
+        return client.ask(GUIDE, PROMPT.format(file=file, text=text), SCHEMA, model)
     # Streamed, since a long publication makes a long reply; fallbacks="default" re-runs a request
     # a safety classifier declines on a fallback model instead of failing it.
     with client.beta.messages.stream(
@@ -129,13 +139,52 @@ def extract(file: str, client, overrides: dict | None = None, model: str = MODEL
     return {"source": {k: source[k] for k in SOURCE_FIELDS if source.get(k)}, "claims": claims}, rejected
 
 
-def make_client():
+class ClaudeCode:
+    """Asks Claude through the Claude Code CLI (`claude -p`), so it runs on the Claude account the
+    CLI is logged in to instead of an API key."""
+    def __init__(self, exe: str = "claude"):
+        self.exe = exe
+
+    def ask(self, system: Path, prompt: str, schema: dict, model: str) -> dict:
+        # No tools: Claude only reads the prompt. No --bare, which would skip the account login.
+        # The publication goes in on stdin, since it can be too long for a command line.
+        argv = [self.exe, "-p", "--output-format", "json", "--json-schema", json.dumps(schema),
+                "--system-prompt-file", str(system), "--model", model, "--effort", "high", "--tools", ""]
+        done = subprocess.run(argv, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                              timeout=CLI_TIMEOUT)
+        try:
+            result = json.loads(done.stdout)
+        except json.JSONDecodeError:
+            raise RuntimeError(f"Claude Code failed (exit {done.returncode}): "
+                               f"{(done.stderr or done.stdout).strip()[:500]}") from None
+        if result.get("is_error") or result.get("structured_output") is None:
+            raise RuntimeError(f"Claude stopped early ({result.get('subtype')}: {result.get('result')}); no draft written")
+        return result["structured_output"]
+
+
+def make_client(backend: str = "auto"):
+    """The client for --backend, or None (with why printed) if it isn't set up."""
+    if backend == "auto":
+        backend = "api" if os.environ.get("ANTHROPIC_API_KEY") or not shutil.which("claude") else "claude-code"
+    if backend == "claude-code":
+        if exe := shutil.which("claude"):
+            return ClaudeCode(exe)
+        print("Claude Code isn't installed: get it from https://claude.com/claude-code and run `claude` once to log in.",
+              file=sys.stderr)
+        return None
     try:
         import anthropic
     except ImportError:
-        print('This needs the Anthropic SDK: pip install "rensim-tools[llm]"', file=sys.stderr)
+        print('Install Claude Code and log in (no API key needed), or for the API: pip install "rensim-tools[llm]"',
+              file=sys.stderr)
         return None
     return anthropic.Anthropic()
+
+
+def add_backend(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument("--backend", choices=["auto", "claude-code", "api"], default="auto",
+                    help="claude-code uses your Claude account through the `claude` CLI; api needs ANTHROPIC_API_KEY "
+                         "(default auto: api if ANTHROPIC_API_KEY is set, else claude-code if installed)")
 
 
 def run_extract(file: str, client, overrides: dict | None, model: str) -> tuple[dict, list[str]] | None:
@@ -144,10 +193,13 @@ def run_extract(file: str, client, overrides: dict | None, model: str) -> tuple[
         return extract(file, client, overrides, model)
     except (FileNotFoundError, RuntimeError) as e:
         print(e, file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        print(f"Claude Code took over {CLI_TIMEOUT // 60} minutes; no draft written.", file=sys.stderr)
     except TypeError as e:   # what the SDK raises when it finds no credentials
         if "authentication" not in str(e):
             raise
-        print("No API key: set ANTHROPIC_API_KEY (or log in with `ant auth login`).", file=sys.stderr)
+        print("No API key: set ANTHROPIC_API_KEY, or use your Claude account with --backend claude-code.",
+              file=sys.stderr)
     except Exception as e:
         if type(e).__module__.startswith("anthropic"):
             print(f"Claude API error: {e}", file=sys.stderr)
@@ -163,10 +215,11 @@ def print_rejected(rejected: list[str]) -> None:
 
 def main(argv=None):
     """rensim extract-claims: draft a claims file for one publication."""
-    ap = argparse.ArgumentParser(prog="rensim extract-claims", description="Draft a claims file with the Claude API.")
+    ap = argparse.ArgumentParser(prog="rensim extract-claims", description="Draft a claims file with Claude.")
     ap.add_argument("publication", help="its path under data/raw/, e.g. player_publications/foo.pdf")
     ap.add_argument("--force", action="store_true", help="overwrite an existing draft")
     ap.add_argument("--model", default=MODEL, help=f"Claude model (default {MODEL})")
+    add_backend(ap)
     for flag, key in (("--source-id", "source_id"), ("--kind", "kind"), ("--title", "title"),
                       ("--publisher", "publisher"), ("--family", "publisher_family"),
                       ("--game-date", "game_date"), ("--real-date", "real_date")):
@@ -178,7 +231,7 @@ def main(argv=None):
     if out.exists() and not args.force:
         print(f"{out} already exists; --force to overwrite it.", file=sys.stderr)
         return 1
-    client = make_client()
+    client = make_client(args.backend)
     overrides = {k: v for k in ("source_id", "kind", "title", "publisher", "publisher_family", "game_date", "real_date")
                  if (v := getattr(args, k))}
     if client is None or (result := run_extract(file, client, overrides, args.model)) is None:
@@ -231,6 +284,7 @@ def evaluate(argv=None):
     ap.add_argument("gold", type=Path, help="a claims file written by hand")
     ap.add_argument("--draft", type=Path, help="the draft to score; without it, the publication is extracted again")
     ap.add_argument("--model", default=MODEL, help=f"Claude model when extracting (default {MODEL})")
+    add_backend(ap)
     args = ap.parse_args(argv)
 
     gold = json.loads(args.gold.read_text(encoding="utf-8"))
@@ -240,7 +294,7 @@ def evaluate(argv=None):
     if args.draft:
         draft = json.loads(args.draft.read_text(encoding="utf-8"))
     else:
-        client = make_client()
+        client = make_client(args.backend)
         if client is None or (result := run_extract(gold["source"]["file"], client, None, args.model)) is None:
             return 1
         draft, rejected = result
