@@ -107,7 +107,12 @@ pip install "rensim-tools[llm]"      # adds the Anthropic SDK; set ANTHROPIC_API
 rensim extract-claims player_publications/grimani_1547-03.pdf
 ```
 
-It sends the text and the same guide to the Claude API and writes `data/claims/drafts/<name>.json`.
+If you have [Claude Code](https://claude.com/claude-code) installed and logged in, you can skip the
+API key: with `ANTHROPIC_API_KEY` unset (or with `--backend claude-code`), the request goes through
+`claude -p` and counts against your own Claude plan's usage. That's meant for running the tool
+yourself on your own login; for anything else, use an API key.
+
+It sends the text and the same guide to Claude and writes `data/claims/drafts/<name>.json`.
 Any claim with a quote that isn't in the source, or with a missing field or unknown type or hedge, is
 dropped and listed. Drafts aren't loaded, so review the draft, fix it, and move it up to `data/claims/`.
 `--game-date`, `--publisher`, `--family` and similar flags set the source details when the text doesn't give them.
