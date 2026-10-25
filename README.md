@@ -16,6 +16,7 @@ your data folder                              rensim-tools
   data/claims/*.json claims from publications   rensim quality  data checks; rensim claims  quote checks
   data/aliases/      names you matched          rensim match    propose look-alike names to review
   orders/            the orders you sent        rensim dbt      dbt on the views: test, docs...
+                                               rensim mcp      let Claude query the database
 ```
 
 ## Set up
@@ -90,6 +91,24 @@ to email. In Claude Code:
 
 Put a `CLAUDE.md` in your data folder with your current plan and how you like to work; the skill
 reads it first.
+
+### Questions in plain English
+
+`rensim mcp` lets Claude query your database directly, so you can ask "who arrived at my home
+town last turn?" or "where's the cheapest grain near me?" and get an answer from your data:
+
+```bash
+pip install "rensim-tools[mcp]"        # adds the MCP SDK
+```
+
+The renaissance-turn plugin starts it for you. Without the plugin, register it once from your
+data folder: `claude mcp add rensim -- rensim mcp`. Start Claude Code in your data folder (or
+below it), the same as the other commands, so it finds your `rensim.toml`.
+
+Claude gets `query` (any SQL), `describe` (the tables and views with their descriptions),
+`what_changed`, `who_is_here`, `my_past_orders`, `prices` (by item, place or supply/demand), and
+`ask` for any saved question. The tools only read: the database is opened read-only, and the SQL
+can't touch other files. Run `rensim run` to load new turns; Claude sees them on its next question.
 
 ## Player publications
 
