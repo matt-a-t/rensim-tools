@@ -12,6 +12,7 @@ with rensim.toml), or anywhere below it.
     rensim extract-claims FILE          draft a claims file for a publication with the Claude API
     rensim eval-claims GOLD [--draft D] precision and recall of drafted claims against a hand-written file
     rensim match [--apply | --score F]  propose look-alike names to review, then keep the ones you accept
+    rensim mcp                          MCP server: Claude answers questions from your database
     rensim config                       show the settings in use
 
 `python -m renaissance ...` does the same.
@@ -24,7 +25,8 @@ import sys
 COMMANDS = {"run": "run", "ask": "ask", "quality": "quality", "dbt": "dbt_runner",
             "orders": "orders", "training": "training", "extract": "extract_text",
             "claims": "claims", "match": "match",
-            "extract-claims": "llm_claims", "eval-claims": "llm_claims:evaluate"}   # module[:function], default main
+            "extract-claims": "llm_claims", "eval-claims": "llm_claims:evaluate",
+            "mcp": "mcp_server"}   # module[:function], default main
 
 
 def show_config() -> int:

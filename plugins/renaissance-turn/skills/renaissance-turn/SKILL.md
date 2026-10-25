@@ -18,6 +18,9 @@ player's current plan and how they like to work, and it wins over the defaults h
   `data/raw/newsletters/` first (the file name doesn't matter; dates are read from inside).
 - `rensim run`, then `rensim ask --sql "select * from v_personae_now order by persona_id"` for who
   is where, and `rensim ask nearest_places` / `rensim ask what_changed` as needed.
+- If the `rensim` MCP tools are available (`what_changed`, `who_is_here`, `prices`, `query`...), use
+  them for questions about the data instead of `rensim ask`: they return rows you can read directly.
+  They are read-only, so still use `rensim run` to load new files.
 - Read the last orders sent (`rensim ask my_past_orders`, or the newest `orders/<account>_YYYY-MM.txt`)
   so the new turn follows on from the plan.
 

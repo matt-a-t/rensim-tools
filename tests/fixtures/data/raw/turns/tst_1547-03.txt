@@ -54,7 +54,7 @@ ROADS: none
  4.50000 horse             1           450
 
 
-*** PERSONAE INSIDE:   Arya( 101)STARK   ,   ,  1 T.; Jon( 102)STARK   ,   ,  1 T.; Sansa( 103)STARK; Eddard( 104)STARK; Theon( 900)GREYJOY     ,   ,500 T.;
+*** PERSONAE INSIDE:   Arya( 101)STARK   ,   ,  1 T.; Jon( 102)STARK   ,   ,  1 T.; Sansa( 103)STARK; Eddard( 104)STARK; Theon( 900)GREYJOY     ,   ,500 T.; Ramsay( 901)BOLTON     ,   ,200 T.;
 *** PERSONAE OUTSIDE:
 *****************************************************************
 STARK          Kelso          is at N55.32 , W2.28
