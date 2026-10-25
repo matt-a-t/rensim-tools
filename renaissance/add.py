@@ -59,6 +59,14 @@ def remove_address(data: bytes) -> bytes | None:
     return "\n".join(lines).encode("cp1252", errors="surrogateescape")
 
 
+def has_address(data: bytes) -> bool:
+    """Whether a turn file still has lines in its address block that remove_address takes out."""
+    lines = data.decode("cp1252", errors="surrogateescape").split("\n")
+    block = address_block(lines)
+    return bool(block) and any(l.strip() and l.strip() != ADDRESS_REMOVED and not FEE_RE.match(l)
+                               for l in lines[block[0]:block[1]])
+
+
 def add_file(path: Path, raw: Path, force: bool = False,
              keep_address: bool = False) -> tuple[Path, bool]:
     """Check one file and save it under raw. Returns where it went and whether it was written

@@ -12,8 +12,10 @@ from renaissance.add import ADDRESS_REMOVED, Refused, add_file
 from renaissance.parse_turn import parse_turn
 from renaissance.settings import RAW
 
+from . import FIXTURES
+
 TURNS = sorted((RAW / "turns").glob("*.txt"))
-JAN = RAW / "turns" / "tst_1547-01.txt"
+JAN = FIXTURES / "downloads" / "tst_1547-01.txt"   # as the GM sends it, address and all
 NEWS = RAW / "newsletters" / "NEWSL901"
 
 
@@ -77,6 +79,10 @@ class Add(unittest.TestCase):
         self.assertIn(f"{ADDRESS_REMOVED}\r\nCopyright", saved)
         original = JAN.read_bytes().decode("cp1252")
         self.assertEqual(saved[saved.index("Copyright"):], original[original.index("Copyright"):])
+
+    def test_saved_turn_is_the_fixture(self):
+        dest, _ = self.add(JAN)
+        self.assertEqual(dest.read_bytes(), (RAW / "turns" / JAN.name).read_bytes())
 
     def test_turn_parses_the_same_without_its_address(self):
         dest, _ = self.add(JAN)   # same file name, so even sources.file_name matches

@@ -4,12 +4,7 @@ ACTIONS= STARK:  0
                   PAYMENTS RECEIVED:    0.00
                   TOTAL ACTION FEES:    0.000
                   BASIC MONTHLY FEES:    4.40
-
-                 YOU HAVE A CREDIT OF $  45.60
-
-Samwell Tarly  Stark
-1 Example Street, Nowhere (a made-up address the parser must drop)
-
+[billing and mailing address removed before committing]
 Copyright notice: this is a made-up turn report for tests.
 
  Arya( 101)STARK, , Catholic, Citizen of Carlisle

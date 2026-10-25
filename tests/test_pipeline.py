@@ -12,7 +12,7 @@ from renaissance.quality import run_checks
 from renaissance.run import parse_all
 from renaissance.settings import RAW
 
-from . import fixture_db
+from . import FIXTURES, fixture_db
 
 
 class Pipeline(unittest.TestCase):
@@ -49,16 +49,19 @@ class Pipeline(unittest.TestCase):
         self.assertGreater(miles["Kelso"], 40)
 
 
+DOWNLOAD = FIXTURES / "downloads" / "tst_1547-01.txt"   # a turn as the GM sends it, address and all
+
+
 class TurnParser(unittest.TestCase):
     t = parse_turn(RAW / "turns" / "tst_1547-03.txt")
 
     def test_billing_and_address_are_dropped(self):
-        text = repr(self.t)
+        text = repr(parse_turn(DOWNLOAD))
         self.assertNotIn("Example Street", text)
         self.assertNotIn("CREDIT", text)
 
     def test_address_block(self):
-        lines = read_text(RAW / "turns" / "tst_1547-03.txt").split("\n")
+        lines = read_text(DOWNLOAD).split("\n")
         start, end = address_block(lines)
         self.assertTrue(lines[start - 1].startswith("ACTIONS="))
         self.assertTrue(lines[end].startswith("Copyright"))
