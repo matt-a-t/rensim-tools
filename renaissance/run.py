@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 
 from .claims import load_claims
+from .common import detect_kind
 from .dbt_runner import dbt
 from .load import load_duckdb
 from .normalize import combine, normalize
@@ -28,10 +29,10 @@ def parse_all() -> dict[str, list[dict]]:
     # data/claims/ (see renaissance/claims_extraction.md) and reference documents aren't loaded.
     for path in sorted(p for p in RAW.rglob("*") if p.is_file()
                        and not {"player_publications", "reference"} & set(p.parts)):
-        head = path.read_bytes()[:400].decode("cp1252", errors="replace")
-        if head.startswith("ACCOUNT CODE:"):
+        kind = detect_kind(path)
+        if kind == "turn":
             parsed.append(parse_turn(path))
-        elif "N E W S L E T T E R" in head:
+        elif kind == "newsletter":
             parsed.append(parse_newsletter(path))
         else:
             print(f"  skipped (unrecognized format): {path.relative_to(BASE)}")

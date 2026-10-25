@@ -1,4 +1,4 @@
-"""Shared helpers: reading the old DOS-style files, dates, numbers, coordinates."""
+"""Shared helpers: reading the old DOS-style files and telling them apart, dates, numbers, coordinates."""
 from __future__ import annotations
 
 import math
@@ -17,6 +17,17 @@ def read_text(path) -> str:
     text = raw.decode("cp1252", errors="replace")
     text = text.replace("\x1a", "").replace("\r\n", "\n").replace("\r", "\n")
     return text
+
+
+def detect_kind(path) -> str | None:
+    """'turn' for a turn result, 'newsletter' for a GM newsletter, None for anything else."""
+    with open(path, "rb") as f:
+        head = f.read(400).decode("cp1252", errors="replace")
+    if head.startswith("ACCOUNT CODE:"):
+        return "turn"
+    if "N E W S L E T T E R" in head:
+        return "newsletter"
+    return None
 
 
 def parse_date(text: str) -> date:
