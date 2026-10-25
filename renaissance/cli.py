@@ -1,6 +1,7 @@
 """The `rensim` command: one entry point for every tool. Run it from your data folder (the one
 with rensim.toml), or anywhere below it.
 
+    rensim add FILE... [--run]          save a turn result or newsletter in data/raw, checked and named
     rensim run                          parse data/raw and orders/, load the database, build the views
     rensim ask [name] [--sql "..."]     saved questions, or your own SQL
     rensim quality                      data quality checks on the loaded database
@@ -22,7 +23,7 @@ from __future__ import annotations
 import importlib
 import sys
 
-COMMANDS = {"run": "run", "ask": "ask", "quality": "quality", "dbt": "dbt_runner",
+COMMANDS = {"add": "add", "run": "run", "ask": "ask", "quality": "quality", "dbt": "dbt_runner",
             "orders": "orders", "training": "training", "extract": "extract_text",
             "claims": "claims", "match": "match",
             "extract-claims": "llm_claims", "eval-claims": "llm_claims:evaluate",
