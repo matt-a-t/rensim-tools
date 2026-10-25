@@ -20,6 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 extract = ["Pillow"]
 llm = ["anthropic==2.1.0"]
+mcp = ["mcp==2.3.0"]
 match = ["splink==5.0.0"]
 
 [project.scripts]

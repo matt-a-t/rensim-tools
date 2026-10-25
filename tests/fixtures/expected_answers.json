@@ -6,6 +6,11 @@
    "demand food price 960 -> 963"
   ],
   [
+   "presence",
+   "Ramsay BOLTON",
+   "arrived Carlisle with 200 T."
+  ],
+  [
    "skill",
    "Arya",
    "assassination: 320 -> 340"
@@ -55,6 +60,15 @@
    "Theon",
    "GREYJOY",
    500,
+   "other"
+  ],
+  [
+   "Carlisle",
+   "inside",
+   901,
+   "Ramsay",
+   "BOLTON",
+   200,
    "other"
   ]
  ],
