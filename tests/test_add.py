@@ -1,4 +1,5 @@
-"""rensim add: fixture files are checked, named from what's inside them and saved under a temp data/raw."""
+"""rensim add: fixture files are checked, named from what's inside them, have the mailing address removed
+and are saved under a temp data/raw."""
 import contextlib
 import io
 import tempfile
@@ -6,10 +7,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from renaissance import add
-from renaissance.add import Refused, add_file
+from renaissance import add, orders
+from renaissance.add import ADDRESS_REMOVED, Refused, add_file
+from renaissance.parse_turn import parse_turn
 from renaissance.settings import RAW
 
+TURNS = sorted((RAW / "turns").glob("*.txt"))
 JAN = RAW / "turns" / "tst_1547-01.txt"
 NEWS = RAW / "newsletters" / "NEWSL901"
 
@@ -29,9 +32,9 @@ class Add(unittest.TestCase):
         path.write_bytes(data)
         return path
 
-    def add(self, path: Path, force: bool = False) -> tuple[Path, bool]:
+    def add(self, path: Path, force: bool = False, keep_address: bool = False) -> tuple[Path, bool]:
         with contextlib.redirect_stdout(io.StringIO()):
-            return add_file(path, self.raw, force)
+            return add_file(path, self.raw, force, keep_address)
 
     def main(self, *argv: str, stdin: bytes = b"") -> tuple[int, str]:
         out = io.StringIO()
@@ -44,7 +47,6 @@ class Add(unittest.TestCase):
         dest, written = self.add(self.download(JAN.read_bytes(), "turn (3).txt"))
         self.assertEqual(dest, self.raw / "turns" / "tst_1547-01.txt")
         self.assertTrue(written)
-        self.assertEqual(dest.read_bytes(), JAN.read_bytes())
 
     def test_newsletter_is_named_from_its_issue(self):
         dest, _ = self.add(self.download(NEWS.read_bytes()))
@@ -62,7 +64,52 @@ class Add(unittest.TestCase):
             self.add(changed)
         dest, written = self.add(changed, force=True)
         self.assertTrue(written)
-        self.assertEqual(dest.read_bytes(), changed.read_bytes())
+        self.assertIn(b"A GM message added later", dest.read_bytes())
+
+    def test_address_is_removed_and_fees_kept(self):
+        dest, _ = self.add(JAN)
+        saved = dest.read_bytes().decode("cp1252")
+        self.assertNotIn("Example Street", saved)
+        self.assertNotIn("Samwell", saved)
+        self.assertNotIn("CREDIT", saved)
+        self.assertIn("TOTAL ACTION FEES:    5.000\r\n", saved)
+        self.assertIn("NET PRIOR BALANCE:", saved)
+        self.assertIn(f"{ADDRESS_REMOVED}\r\nCopyright", saved)
+        original = JAN.read_bytes().decode("cp1252")
+        self.assertEqual(saved[saved.index("Copyright"):], original[original.index("Copyright"):])
+
+    def test_turn_parses_the_same_without_its_address(self):
+        dest, _ = self.add(JAN)   # same file name, so even sources.file_name matches
+        before, after = parse_turn(JAN), parse_turn(dest)
+        # Only the line numbers of unread lines move up, by the address lines taken out.
+        for row in before["unparsed_lines"] + after["unparsed_lines"]:
+            row.pop("line_no")
+        self.assertEqual(after, before)
+
+    def test_removing_the_address_twice_changes_nothing(self):
+        dest, _ = self.add(JAN)
+        _, written = self.add(self.download(dest.read_bytes()))
+        self.assertFalse(written)
+
+    def test_keep_address(self):
+        dest, _ = self.add(JAN, keep_address=True)
+        self.assertEqual(dest.read_bytes(), JAN.read_bytes())
+
+    def test_no_copyright_line_warns_and_keeps_the_file(self):
+        data = JAN.read_bytes().replace(b"Copyright notice", b"Notice")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            dest, _ = add_file(self.download(data), self.raw)
+        self.assertIn("address wasn't found", out.getvalue())
+        self.assertEqual(dest.read_bytes(), data)
+
+    def test_fee_estimate_still_works_on_added_turns(self):
+        expected = orders.last_fee_per_action()
+        self.assertIsNotNone(expected)
+        for turn in TURNS:
+            self.add(turn)
+        with patch.object(orders, "TURNS", self.raw / "turns"):
+            self.assertEqual(orders.last_fee_per_action(), expected)
 
     def test_unknown_format_is_refused(self):
         with self.assertRaisesRegex(Refused, "not a turn result"):

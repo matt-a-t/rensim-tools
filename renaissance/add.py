@@ -1,25 +1,32 @@
 """Save a turn result or GM newsletter into data/raw, named the usual way.
 
-    rensim add FILE... [--force] [--run]
+    rensim add FILE... [--force] [--run] [--keep-address]
     rensim add -                        text pasted on stdin (end with Ctrl-D)
 
 Each file is read straight away, so one the parser can't handle fails now rather than partway
 through `rensim run`. Turns are saved as data/raw/turns/<account>_<YYYY-MM>.txt and newsletters
 as data/raw/newsletters/NEWSL<issue>.
+
+A turn's billing block and mailing address (between the ACTIONS= line and the Copyright line) are
+replaced with one line saying so, so the file is safe to commit. The fee lines in it stay:
+`rensim orders` reads TOTAL ACTION FEES to estimate what your orders will cost.
 """
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import tempfile
 from pathlib import Path
 
 from .common import detect_kind
 from .parse_news import parse_newsletter
-from .parse_turn import parse_turn
+from .parse_turn import address_block, parse_turn
 from .settings import BASE, MY_ACCOUNT, RAW
 
 PARSERS = {"turn": parse_turn, "newsletter": parse_newsletter}
+FEE_RE = re.compile(r"^\s*[A-Z][A-Z ]*:\s*-?[\d,.]+\s*$")   # "  TOTAL ACTION FEES:    5.000"
+ADDRESS_REMOVED = "[billing and mailing address removed before committing]"
 
 
 class Refused(Exception):
@@ -38,7 +45,22 @@ def target(kind: str, source: dict, raw: Path) -> Path:
     return raw / "newsletters" / f"NEWSL{source['issue']}"
 
 
-def add_file(path: Path, raw: Path, force: bool = False) -> tuple[Path, bool]:
+def remove_address(data: bytes) -> bytes | None:
+    """The turn file with its address block replaced by ADDRESS_REMOVED, keeping the fee lines;
+    None if there's no Copyright line to find the block by. Running it twice changes nothing."""
+    # surrogateescape: bytes cp1252 has no character for come back out unchanged.
+    lines = data.decode("cp1252", errors="surrogateescape").split("\n")
+    block = address_block(lines)
+    if block is None:
+        return None
+    start, end = block
+    cr = "\r" if lines[0].endswith("\r") else ""
+    lines[start:end] = [l for l in lines[start:end] if FEE_RE.match(l)] + [ADDRESS_REMOVED + cr]
+    return "\n".join(lines).encode("cp1252", errors="surrogateescape")
+
+
+def add_file(path: Path, raw: Path, force: bool = False,
+             keep_address: bool = False) -> tuple[Path, bool]:
     """Check one file and save it under raw. Returns where it went and whether it was written
     (False: an identical copy was already there). Raises Refused if it can't be added."""
     kind = detect_kind(path)
@@ -50,6 +72,11 @@ def add_file(path: Path, raw: Path, force: bool = False) -> tuple[Path, bool]:
         raise Refused(f"the {kind} parser couldn't read it: {e}") from e
     source = tables["sources"][0]
     data = path.read_bytes()
+    if kind == "turn" and not keep_address:
+        removed = remove_address(data)
+        if removed is None:
+            print("  warning: no Copyright line, so the address wasn't found; check the file before committing")
+        data = removed or data
     dest = target(kind, source, raw)
     if dest.exists():
         if dest.read_bytes() == data:
@@ -81,6 +108,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="rensim add", description=__doc__.split("\n\n")[0])
     ap.add_argument("files", nargs="+", metavar="FILE", help="turn results or newsletters; - for stdin")
     ap.add_argument("--force", action="store_true", help="replace a saved file with different content")
+    ap.add_argument("--keep-address", action="store_true", help="save turns with the mailing address still in")
     ap.add_argument("--run", action="store_true", help="then rensim run, if anything new was saved")
     args = ap.parse_args(argv)
 
@@ -95,7 +123,7 @@ def main(argv=None) -> int:
                 continue
             print(f"{label}:", flush=True)   # before any error on stderr, when piped
             try:
-                dest, written = add_file(path, RAW, args.force)
+                dest, written = add_file(path, RAW, args.force, args.keep_address)
             except Refused as e:
                 print(f"  not added: {e}", file=sys.stderr)
                 failed += 1
