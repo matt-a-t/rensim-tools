@@ -220,7 +220,7 @@ views away; CI runs `dbt build`, where stopping is the point.
 
 | To add | Do this |
 |---|---|
-| A new turn or GM newsletter | Drop the file in `data/raw/turns/` or `data/raw/newsletters/`, run `rensim run` |
+| A new turn or GM newsletter | `rensim add FILE --run` (or save it under `data/raw/` yourself and `rensim run`) |
 | A new turn-report line type | Add a branch in `parse_location` / `parse_personae`, plus a test with the real line |
 | A new newsletter event type | Add a template to `EVENT_TEMPLATES` in `parse_news.py`; count it against the raw text in a test |
 | A player publication | Raw file -> `rensim extract` -> claims file by hand or `rensim extract-claims` (see `renaissance/claims_extraction.md`) |

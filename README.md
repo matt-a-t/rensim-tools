@@ -9,13 +9,14 @@ nothing in this repo needs, or contains, anyone's turn reports, addresses or the
 
 ```
 your data folder                              rensim-tools
-  rensim.toml        who you are                rensim run      parse, load into DuckDB, build the views
-  data/raw/turns/    turn results               rensim ask      saved questions, or your own SQL
-  data/raw/newsletters/  GM newsletters         rensim orders   check orders, print the text to email
-  data/raw/player_publications/  propaganda     rensim training best training for personae together
-  data/claims/*.json claims from publications   rensim quality  data checks; rensim claims  quote checks
-  data/aliases/      names you matched          rensim match    propose look-alike names to review
-  orders/            the orders you sent        rensim dbt      dbt on the views: test, docs...
+  rensim.toml        who you are                rensim add      save a turn result or newsletter, checked
+  data/raw/turns/    turn results               rensim run      parse, load into DuckDB, build the views
+  data/raw/newsletters/  GM newsletters         rensim ask      saved questions, or your own SQL
+  data/raw/player_publications/  propaganda     rensim orders   check orders, print the text to email
+  data/claims/*.json claims from publications   rensim training best training for personae together
+  data/aliases/      names you matched          rensim quality  data checks; rensim claims  quote checks
+  orders/            the orders you sent        rensim match    propose look-alike names to review
+                                               rensim dbt      dbt on the views: test, docs...
                                                rensim mcp      let Claude query the database
 ```
 
@@ -48,8 +49,11 @@ Environment variables override the file: `RENSIM_ACCOUNT`, `RENSIM_FAMILY`, `REN
 
 ## Each turn
 
-1. Save the turn result in `data/raw/turns/` and the newsletter in `data/raw/newsletters/`.
-   File names don't matter: dates and accounts are read from inside the files.
+1. `rensim add ~/Downloads/turn.txt ~/Downloads/NEWSL640` (or `rensim add -` and paste the text).
+   It reads each file straight away, so one the tool can't read fails now, saves it as
+   `data/raw/turns/<account>_YYYY-MM.txt` or `data/raw/newsletters/NEWSL<issue>` from what's
+   inside, and replaces your billing block and mailing address with one line saying so (the fee
+   lines stay; `--keep-address` keeps it all). Add `--run` to go straight on to step 2.
 2. `rensim run` (loads everything, builds the views with dbt and runs dbt's tests), then
    `rensim ask` (every saved question) or `rensim ask what_changed`, or
    `rensim ask --sql "SELECT * FROM v_personae_now"`.
@@ -210,8 +214,10 @@ with a lineage graph, to `.dbt/target/static_index.html`.
 
 ## Notes on the data
 
-- **Your address is dropped.** The billing and mailing block at the top of each turn result never
-  leaves the parser. Still, keep your data folder private.
+- **Your address is dropped.** `rensim add` takes the billing and mailing block at the top of each
+  turn result out of the saved file, and the parser never reads it anyway. `rensim quality` fails
+  on a turn file that still has it; `rensim add --force data/raw/turns/*.txt` cleans up files saved
+  before `rensim add` did this. Still, keep your data folder private.
 - **Coordinates are degrees.minutes.** `N55.57` is 55°57' = 55.95°.
 - **Place names join by key.** `PEGU`/`Pegu` and `pNompenh`/`Pnompenh` are the same place;
   `dim_places.spellings` lists every variant seen, including ones you matched (`rensim match`).

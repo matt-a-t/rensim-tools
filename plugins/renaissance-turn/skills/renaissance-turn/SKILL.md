@@ -14,8 +14,9 @@ player's current plan and how they like to work, and it wins over the defaults h
 ## 1. Get up to date
 - `rensim config` shows whose account this is (account code, family, home). Use those values
   below wherever this says `<account>`; if no config is found, ask for them and write `rensim.toml`.
-- If they attached a new turn result or newsletter, save it in `data/raw/turns/` or
-  `data/raw/newsletters/` first (the file name doesn't matter; dates are read from inside).
+- If they attached a new turn result or newsletter, `rensim add <file>` (or pipe pasted text to
+  `rensim add -`): it checks the file, names it and removes their mailing address. If it says
+  "not added", tell them why rather than saving the file by hand.
 - `rensim run`, then `rensim ask --sql "select * from v_personae_now order by persona_id"` for who
   is where, and `rensim ask nearest_places` / `rensim ask what_changed` as needed.
 - If the `rensim` MCP tools are available (`what_changed`, `who_is_here`, `prices`, `query`...), use
