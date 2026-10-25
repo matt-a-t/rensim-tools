@@ -7,10 +7,10 @@ from pathlib import Path
 from renaissance.load import connect
 from renaissance.normalize import combine, normalize
 from renaissance.parse_turn import parse_turn
-from renaissance.quality import known_gaps, run_checks
+from renaissance.quality import check_addresses, known_gaps, run_checks
 from renaissance.settings import RAW
 
-from . import load
+from . import FIXTURES, load
 
 JAN, FEB, MAR = (RAW / "turns" / f"tst_1547-0{m}.txt" for m in (1, 2, 3))
 
@@ -70,6 +70,16 @@ class Quality(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertIn("Your courier was lost at sea.", found[0])
 
+
+    def test_turn_with_an_address_fails(self):
+        turns = self.dir / "raw" / "turns"
+        turns.mkdir(parents=True)
+        (turns / "tst_1547-01.txt").write_bytes((FIXTURES / "downloads" / "tst_1547-01.txt").read_bytes())
+        (turns / "tst_1547-02.txt").write_bytes(FEB.read_bytes())
+        found = check_addresses(None, self.dir / "raw")
+        self.assertEqual(len(found), 1)
+        self.assertIn("tst_1547-01.txt still has its billing block or mailing address", found[0])
+        self.assertIn("rensim add --force", found[0])
 
     def test_known_gaps_from_config(self):
         gaps = known_gaps([{"account": "abc", "from": "1546-11", "to": "1547-02", "why": "changed family"}])

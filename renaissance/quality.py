@@ -3,7 +3,7 @@ fails the run, so a broken file stops CI instead of quietly loading half its row
 
     rensim quality                  # after rensim run
 
-The checks read the loaded tables, not the dbt models. When real data legitimately breaks a rule,
+The checks read the loaded tables, not the dbt models (check_addresses reads the turn files). When real data legitimately breaks a rule,
 add it to the known exceptions in your rensim.toml with the reason, rather than loosening the rule:
 
     [quality]
@@ -16,7 +16,9 @@ import argparse
 import re
 import sys
 
-from .settings import QUALITY
+from .add import has_address, shown
+from .common import detect_kind
+from .settings import QUALITY, RAW
 
 
 def month_index(ym: str) -> int:
@@ -149,7 +151,16 @@ def check_unparsed(con) -> list[str]:
             if not any(p.search(t) for p in known)]
 
 
-CHECKS = [check_turn_months, check_row_counts, check_prices, check_unparsed]
+def check_addresses(con, raw=None) -> list[str]:
+    """No turn file under data/raw still has its billing block or mailing address. `rensim add`
+    takes them out; for files saved before it did, `rensim add --force` on the file does it in place."""
+    raw = raw or RAW
+    return [f"{shown(p)} still has its billing block or mailing address: rensim add --force {shown(p)}"
+            for p in sorted(raw.rglob("*"))
+            if p.is_file() and detect_kind(p) == "turn" and has_address(p.read_bytes())]
+
+
+CHECKS = [check_turn_months, check_row_counts, check_prices, check_unparsed, check_addresses]
 
 
 def run_checks(con) -> dict[str, list[str]]:

@@ -60,6 +60,13 @@ def split_blocks(lines: list[str]) -> list[tuple[int, list[str]]]:
     return blocks
 
 
+def address_block(lines: list[str]) -> tuple[int, int] | None:
+    """The billing and mailing address: lines[start:end], after the ACTIONS= line and before the
+    Copyright line (lines[end]). None if there's no Copyright line."""
+    end = next((n for n, l in enumerate(lines) if l.strip().startswith("Copyright")), None)
+    return None if end is None else (2, end)
+
+
 def parse_turn(path: str | Path) -> dict[str, list[dict]]:
     path = Path(path)
     lines = read_text(path).split("\n")
@@ -88,7 +95,8 @@ def parse_turn(path: str | Path) -> dict[str, list[dict]]:
         out["unparsed_lines"].append({**base, "section": section, "line_no": n + 1, "text": line})
 
     # ---- 2. skip billing / address: everything up to the Copyright line --
-    first = next((n for n, l in enumerate(lines) if l.strip().startswith("Copyright")), 1) + 1
+    address = address_block(lines)
+    first = address[1] + 1 if address else 2
     blocks = split_blocks(lines)
     # The persona section runs from after the Copyright line to the first separator.
     persona_end = blocks[0][0] + len(blocks[0][1])
