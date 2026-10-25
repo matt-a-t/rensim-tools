@@ -231,6 +231,18 @@ The tests never touch real game files; add tests against your own files in your 
 CI runs the tests, every command on the fixtures, `rensim dbt build`, and the dbt docs site
 (downloadable from each run's summary page).
 
+The tests check what the MCP server returns, not what Claude makes of it. To check that by hand
+after changing a tool or its description (it uses your Claude plan), run in `tests/fixtures`:
+
+```bash
+rensim run
+claude -p "who arrived at my home town last turn?" --strict-mcp-config \
+  --mcp-config '{"mcpServers":{"rensim":{"command":"rensim","args":["mcp"]}}}' \
+  --allowedTools 'mcp__rensim__*' < /dev/null
+```
+
+The answer should be Ramsay BOLTON, arriving in Carlisle with 200 troops, and nobody else.
+
 To change a view, edit its model in `renaissance/dbt/models/` (a `SELECT`, with
 `{{ ref('...') }}` for other models and `{{ source('game', '...') }}` for loaded tables), and its
 description and tests in the `.yml` file beside it. If an answer is meant to change, regenerate the
