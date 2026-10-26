@@ -114,6 +114,46 @@ Claude gets `query` (any SQL), `describe` (the tables and views with their descr
 `ask` for any saved question. The tools only read: the database is opened read-only, and the SQL
 can't touch other files. Run `rensim run` to load new turns; Claude sees them on its next question.
 
+### From your phone
+
+The **Code** tab in the Claude app runs Claude Code in the cloud on a GitHub repo, so you can plan
+a turn from your phone with your computer off. Push your data folder to a private GitHub repo and
+commit two files to it. The first, `.claude/settings.json`, turns the plugin on and runs a setup
+script when a session starts:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "rensim-tools": { "source": { "source": "github", "repo": "matt-a-t/rensim-tools" } }
+  },
+  "enabledPlugins": { "renaissance-turn@rensim-tools": true },
+  "hooks": {
+    "SessionStart": [{ "matcher": "startup", "hooks": [
+      { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/cloud-setup.sh", "timeout": 600 }
+    ]}]
+  }
+}
+```
+
+The second, `.claude/cloud-setup.sh` (make it executable), installs the tools and loads your data,
+but only in cloud sessions:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
+cd "$CLAUDE_PROJECT_DIR"
+pip install -q "rensim-tools[mcp] @ git+https://github.com/matt-a-t/rensim-tools" >&2
+rensim run >&2
+echo "rensim-tools installed and the database loaded."
+```
+
+Then, in the Claude app: **Code**, pick the repo, and ask for your turn. Paste a new turn result
+into the chat and Claude saves it with `rensim add -`. The cloud environment's default network
+access reaches PyPI and GitHub, which is all the setup needs. Claude commits to a new branch,
+so merge it (or have it open a pull request) to keep the orders you sent. If the `rensim` tools
+didn't connect because the setup was still running, `/mcp` reconnects them.
+
 ## Player publications
 
 Other players' newsletters and proclamations become **claims**, kept apart from official facts and
