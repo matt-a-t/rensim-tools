@@ -134,6 +134,19 @@ class Add(unittest.TestCase):
         self.assertEqual(dest.name, "aly_1547-01.txt")
         self.assertIn("isn't yours (TST)", out.getvalue())
 
+    def test_account_that_isnt_letters_and_digits_is_refused(self):
+        for account in (b"../../evil", b"tst/../../evil", b"TST.X"):
+            evil = self.download(JAN.read_bytes().replace(b"ACCOUNT CODE: TST", b"ACCOUNT CODE: " + account))
+            with self.subTest(account=account), self.assertRaisesRegex(Refused, "isn't letters and digits"):
+                self.add(evil)
+        self.assertEqual([p for p in self.dir.rglob("*") if p.is_file() and p.parent != self.dir], [])
+
+    def test_nothing_is_saved_outside_raw(self):
+        with patch.object(add, "target", return_value=self.dir / "elsewhere.txt"), \
+                self.assertRaisesRegex(Refused, "outside"):
+            self.add(JAN)
+        self.assertFalse((self.dir / "elsewhere.txt").exists())
+
     def test_stdin(self):
         code, out = self.main("-", stdin=JAN.read_bytes())
         self.assertEqual(code, 0)
