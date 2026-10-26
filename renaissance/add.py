@@ -68,10 +68,12 @@ def has_address(data: bytes) -> bool:
                                for l in lines[block[0]:block[1]])
 
 
-def add_file(path: Path, raw: Path, force: bool = False,
-             keep_address: bool = False) -> tuple[Path, bool]:
+def add_file(path: Path, raw: Path, force: bool = False, keep_address: bool = False,
+             require_address: bool = False, write: bool = True) -> tuple[Path, bool]:
     """Check one file and save it under raw. Returns where it went and whether it was written
-    (False: an identical copy was already there). Raises Refused if it can't be added."""
+    (False: an identical copy was already there). Raises Refused if it can't be added.
+    require_address: refuse a turn whose address can't be found, rather than warn and keep it.
+    write=False checks everything and says where it would go, without saving."""
     kind = detect_kind(path)
     if kind is None:
         raise Refused("not a turn result (starting ACCOUNT CODE:) or a GM newsletter")
@@ -85,6 +87,9 @@ def add_file(path: Path, raw: Path, force: bool = False,
     data = path.read_bytes()
     if kind == "turn" and not keep_address:
         removed = remove_address(data)
+        if removed is None and require_address:
+            raise Refused("no Copyright line, so the address couldn't be found to remove "
+                          "(--keep-address saves it as it is)")
         if removed is None:
             print("  warning: no Copyright line, so the address wasn't found; check the file before committing")
         data = removed or data
@@ -103,8 +108,9 @@ def add_file(path: Path, raw: Path, force: bool = False,
     unparsed = len(tables.get("unparsed_lines", []))
     if unparsed:
         print(f"  warning: {unparsed} line(s) didn't match any known pattern (`rensim run` lists them)")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
+    if write:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
     return dest, True
 
 
@@ -117,16 +123,18 @@ def read_stdin(folder: Path) -> Path:
     return path
 
 
-def save(label: str, path: Path, raw: Path, force: bool = False, keep_address: bool = False) -> bool | None:
+def save(label: str, path: Path, raw: Path, force: bool = False, keep_address: bool = False,
+         **options) -> bool | None:
     """add_file with what happened printed under label: True if saved, False if an identical copy
-    was already there, None if it was refused (the reason on stderr)."""
+    was already there, None if it was refused (the reason on stderr). options go to add_file."""
     print(f"{label}:", flush=True)   # before any error on stderr, when piped
     try:
-        dest, written = add_file(path, raw, force, keep_address)
+        dest, written = add_file(path, raw, force, keep_address, **options)
     except Refused as e:
         print(f"  not added: {e}", file=sys.stderr)
         return None
-    print(f"  {'saved as' if written else 'already saved, identical:'} {shown(dest)}")
+    done = "saved as" if options.get("write", True) else "would be saved as"
+    print(f"  {done if written else 'already saved, identical:'} {shown(dest)}")
     return written
 
 

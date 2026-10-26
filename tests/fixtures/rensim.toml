@@ -7,3 +7,8 @@ orders_dir = "orders"
 
 [quality]
 known_gaps = [{ account = "TST", from = "1546-07", to = "1546-12", why = "made-up gap for the tests" }]
+
+[fetch]
+sender = "gm@example.org"
+user = "player@example.com"
+host = "imap.example.com"
