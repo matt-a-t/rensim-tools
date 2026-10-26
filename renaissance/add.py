@@ -25,6 +25,7 @@ from .parse_turn import address_block, parse_turn
 from .settings import BASE, MY_ACCOUNT, RAW
 
 PARSERS = {"turn": parse_turn, "newsletter": parse_newsletter}
+ACCOUNT_RE = re.compile(r"[A-Za-z0-9]+")   # turn files are named from it, so nothing else gets in
 FEE_RE = re.compile(r"^\s*[A-Z][A-Z ]*:\s*-?[\d,.]+\s*$")   # "  TOTAL ACTION FEES:    5.000"
 ADDRESS_REMOVED = "[billing and mailing address removed before committing]"
 
@@ -67,10 +68,12 @@ def has_address(data: bytes) -> bool:
                                for l in lines[block[0]:block[1]])
 
 
-def add_file(path: Path, raw: Path, force: bool = False,
-             keep_address: bool = False) -> tuple[Path, bool]:
+def add_file(path: Path, raw: Path, force: bool = False, keep_address: bool = False,
+             require_address: bool = False, write: bool = True) -> tuple[Path, bool]:
     """Check one file and save it under raw. Returns where it went and whether it was written
-    (False: an identical copy was already there). Raises Refused if it can't be added."""
+    (False: an identical copy was already there). Raises Refused if it can't be added.
+    require_address: refuse a turn whose address can't be found, rather than warn and keep it.
+    write=False checks everything and says where it would go, without saving."""
     kind = detect_kind(path)
     if kind is None:
         raise Refused("not a turn result (starting ACCOUNT CODE:) or a GM newsletter")
@@ -79,13 +82,20 @@ def add_file(path: Path, raw: Path, force: bool = False,
     except Exception as e:
         raise Refused(f"the {kind} parser couldn't read it: {e}") from e
     source = tables["sources"][0]
+    if kind == "turn" and not ACCOUNT_RE.fullmatch(source["account"]):
+        raise Refused(f"account code {source['account']!r} isn't letters and digits")
     data = path.read_bytes()
     if kind == "turn" and not keep_address:
         removed = remove_address(data)
+        if removed is None and require_address:
+            raise Refused("no Copyright line, so the address couldn't be found to remove "
+                          "(--keep-address saves it as it is)")
         if removed is None:
             print("  warning: no Copyright line, so the address wasn't found; check the file before committing")
         data = removed or data
     dest = target(kind, source, raw)
+    if not dest.resolve().is_relative_to(raw.resolve()):
+        raise Refused(f"it would be saved outside {shown(raw)}, as {dest}")
     if dest.exists():
         if dest.read_bytes() == data:
             return dest, False
@@ -98,8 +108,9 @@ def add_file(path: Path, raw: Path, force: bool = False,
     unparsed = len(tables.get("unparsed_lines", []))
     if unparsed:
         print(f"  warning: {unparsed} line(s) didn't match any known pattern (`rensim run` lists them)")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
+    if write:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
     return dest, True
 
 
@@ -110,6 +121,32 @@ def read_stdin(folder: Path) -> Path:
     text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
     path.write_bytes(text.encode("cp1252", errors="replace"))
     return path
+
+
+def save(label: str, path: Path, raw: Path, force: bool = False, keep_address: bool = False,
+         **options) -> bool | None:
+    """add_file with what happened printed under label: True if saved, False if an identical copy
+    was already there, None if it was refused (the reason on stderr). options go to add_file."""
+    print(f"{label}:", flush=True)   # before any error on stderr, when piped
+    try:
+        dest, written = add_file(path, raw, force, keep_address, **options)
+    except Refused as e:
+        print(f"  not added: {e}", file=sys.stderr)
+        return None
+    done = "saved as" if options.get("write", True) else "would be saved as"
+    print(f"  {done if written else 'already saved, identical:'} {shown(dest)}")
+    return written
+
+
+def finish(saved: int, failed: int, run: bool) -> int:
+    """The exit code, after `rensim run` if asked and anything new was saved."""
+    if saved and run:
+        from .run import main as run_all   # loads dlt and dbt, so only when asked
+        print()
+        return run_all([]) or (1 if failed else 0)
+    if saved:
+        print("\nNext: rensim run")
+    return 1 if failed else 0
 
 
 def main(argv=None) -> int:
@@ -129,23 +166,10 @@ def main(argv=None) -> int:
                 print(f"{label}: no such file", file=sys.stderr)
                 failed += 1
                 continue
-            print(f"{label}:", flush=True)   # before any error on stderr, when piped
-            try:
-                dest, written = add_file(path, RAW, args.force, args.keep_address)
-            except Refused as e:
-                print(f"  not added: {e}", file=sys.stderr)
-                failed += 1
-                continue
-            saved += written
-            print(f"  {'saved as' if written else 'already saved, identical:'} {shown(dest)}")
-
-    if saved and args.run:
-        from .run import main as run   # loads dlt and dbt, so only when asked
-        print()
-        return run([]) or (1 if failed else 0)
-    if saved:
-        print("\nNext: rensim run")
-    return 1 if failed else 0
+            written = save(label, path, RAW, args.force, args.keep_address)
+            failed += written is None
+            saved += bool(written)
+    return finish(saved, failed, args.run)
 
 
 if __name__ == "__main__":

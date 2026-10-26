@@ -63,6 +63,7 @@ aliases; only the ones you accept reach the next run.
 |---|---|---|
 | `renaissance/common.py` | Shared helpers | Reads the DOS-era files (cp1252, CRLF, Ctrl-Z padding); dates; `,349,402`-style numbers; degrees.minutes coordinates; place keys |
 | `renaissance/parse_turn.py` | Turn report -> rows | Splits the report at `*****` lines: personae block, one block per location, then lookup answers. Drops the billing/address block |
+| `renaissance/add.py`, `renaissance/fetch.py` | New files -> `data/raw/` | `rensim add` checks a file with its parser, names it from what's inside and removes the mailing address; `rensim fetch` does the same for attachments in mail from the GM (IMAP, read-only, only mail the GM's domain signed) |
 | `renaissance/parse_news.py` | GM newsletter -> rows | Sections by ALL-CAPS heading; events matched against templates sentence by sentence; anything unmatched kept as `other` |
 | `renaissance/extract_text.py` | Publication -> text | Run by hand when a new publication arrives (needs Tesseract + LibreOffice); output is committed so CI doesn't need them |
 | `renaissance/parse_reference.py` | Ally reference -> `ref_*` tables | Reads an ally's compiled Word document of GM data (python-docx): cities and characters, each city with its own as-of date |
@@ -220,7 +221,7 @@ views away; CI runs `dbt build`, where stopping is the point.
 
 | To add | Do this |
 |---|---|
-| A new turn or GM newsletter | `rensim add FILE --run` (or save it under `data/raw/` yourself and `rensim run`) |
+| A new turn or GM newsletter | `rensim fetch --run` with `[fetch]` set up, or `rensim add FILE --run` (or save it under `data/raw/` yourself and `rensim run`) |
 | A new turn-report line type | Add a branch in `parse_location` / `parse_personae`, plus a test with the real line |
 | A new newsletter event type | Add a template to `EVENT_TEMPLATES` in `parse_news.py`; count it against the raw text in a test |
 | A player publication | Raw file -> `rensim extract` -> claims file by hand or `rensim extract-claims` (see `renaissance/claims_extraction.md`) |

@@ -10,6 +10,7 @@ nothing in this repo needs, or contains, anyone's turn reports, addresses or the
 ```
 your data folder                              rensim-tools
   rensim.toml        who you are                rensim add      save a turn result or newsletter, checked
+                                               rensim fetch    the same, straight from your email
   data/raw/turns/    turn results               rensim run      parse, load into DuckDB, build the views
   data/raw/newsletters/  GM newsletters         rensim ask      saved questions, or your own SQL
   data/raw/player_publications/  propaganda     rensim orders   check orders, print the text to email
@@ -54,6 +55,7 @@ Environment variables override the file: `RENSIM_ACCOUNT`, `RENSIM_FAMILY`, `REN
    `data/raw/turns/<account>_YYYY-MM.txt` or `data/raw/newsletters/NEWSL<issue>` from what's
    inside, and replaces your billing block and mailing address with one line saying so (the fee
    lines stay; `--keep-address` keeps it all). Add `--run` to go straight on to step 2.
+   Or set up [`rensim fetch`](#fetch-from-email) once and it does this from your mailbox.
 2. `rensim run` (loads everything, builds the views with dbt and runs dbt's tests), then
    `rensim ask` (every saved question) or `rensim ask what_changed`, or
    `rensim ask --sql "SELECT * FROM v_personae_now"`.
@@ -80,6 +82,86 @@ Next turn, `rensim ask my_past_orders` shows what you ordered, with your notes.
 `rensim training` plans training for personae who start the turn together: for each trainer ->
 trainee pair (once per pair per turn) it picks the skill with the biggest gain (the square root of
 the gap). Training runs before movement, so personae can train and still leave the same turn.
+
+## Fetch from email
+
+`rensim fetch` saves new turn results and newsletters straight from your mailbox, the same way
+`rensim add` does: it looks at mail from the GM's address over IMAP, skips attachments that aren't
+a turn or a newsletter (PDFs and so on), and leaves files already saved alone, so it's safe to run
+on a schedule. Add the mailbox to `rensim.toml`:
+
+```toml
+[fetch]
+sender = "gm@example.org"     # the GM's address
+user = "you@gmail.com"        # the mailbox to read (or RENSIM_IMAP_USER)
+host = "imap.gmail.com"       # the default; mailbox = "INBOX" and days = 45 are too
+```
+
+The password only comes from `RENSIM_IMAP_PASSWORD`. For Gmail that's an
+[app password](https://myaccount.google.com/apppasswords) (it needs 2-step verification on).
+Then `rensim fetch --dry-run` shows what it would save, and `rensim fetch --run` saves it and
+loads it. `--days 90` or `--since 2026-09-01` looks further back.
+
+Because it reads mail nobody has looked at, it's careful:
+
+- It opens the mailbox read-only (nothing is marked read, moved or deleted) and checks the
+  server's certificate.
+- It only trusts mail the receiving server says the GM's domain signed (`dkim=pass` or
+  `dmarc=pass` in the top `Authentication-Results` header), since anyone can put the GM's address
+  in a From line. `--no-verify-sender` turns that off, for servers that don't add the header.
+- A turn whose address it can't find is refused rather than saved with the address in.
+- Attachments over 2 MB are skipped, and the password is never printed.
+
+An app password opens your whole mailbox and can't be narrowed. To limit what it exposes, give
+it a mailbox of its own: a new address, with a filter in your main mailbox forwarding the GM's mail
+to it, and point `[fetch]` at that one. (Forwarding adds its own `Authentication-Results`
+header, so check with `--dry-run` that the GM's mail still shows as signed.)
+
+### On a schedule
+
+A data folder kept in a private GitHub repo can fetch every morning and open a pull request with
+anything new, so you look at it before it's merged. Put the password in a GitHub
+[environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment)
+called `mail` limited to the `main` branch (never in a workflow that runs on pull requests), and
+allow Actions to create pull requests (Settings > Actions > General). For example,
+`.github/workflows/fetch.yml`:
+
+```yaml
+name: fetch
+on:
+  schedule: [{ cron: "0 7 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    environment: mail
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install git+https://github.com/matt-a-t/rensim-tools
+      - run: rensim fetch
+        env:
+          RENSIM_IMAP_PASSWORD: ${{ secrets.RENSIM_IMAP_PASSWORD }}
+      - name: Open a pull request with anything new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add data/raw
+          git diff --cached --quiet && exit 0
+          git switch -c "fetch/$(date +%F)"
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com \
+            commit -m "New turn results and newsletters from email"
+          git push origin HEAD
+          gh pr create --fill --base main
+```
+
+Pin the actions to a commit SHA if you like to be strict. A pull request opened with
+`github.token` doesn't start your other workflows; close and reopen it, or push to it, to run
+your checks.
 
 ## With Claude Code
 
@@ -214,7 +296,7 @@ with a lineage graph, to `.dbt/target/static_index.html`.
 
 ## Notes on the data
 
-- **Your address is dropped.** `rensim add` takes the billing and mailing block at the top of each
+- **Your address is dropped.** `rensim add` (and `rensim fetch`) takes the billing and mailing block at the top of each
   turn result out of the saved file, and the parser never reads it anyway. `rensim quality` fails
   on a turn file that still has it; `rensim add --force data/raw/turns/*.txt` cleans up files saved
   before `rensim add` did this. Still, keep your data folder private.
