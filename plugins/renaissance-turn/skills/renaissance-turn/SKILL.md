@@ -14,6 +14,9 @@ player's current plan and how they like to work, and it wins over the defaults h
 ## 1. Get up to date
 - `rensim config` shows whose account this is (account code, family, home). Use those values
   below wherever this says `<account>`; if no config is found, ask for them and write `rensim.toml`.
+- If they say new results or a newsletter arrived by email and `rensim config` shows a `[fetch]`
+  sender, run `rensim fetch` (it needs `RENSIM_IMAP_PASSWORD` set; if it isn't, ask them to attach
+  the file instead). "skipped: not signed" means the mail didn't come provably from the GM: say so.
 - If they attached a new turn result or newsletter, `rensim add <file>` (or pipe pasted text to
   `rensim add -`): it checks the file, names it and removes their mailing address. If it says
   "not added", tell them why rather than saving the file by hand.
