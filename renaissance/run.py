@@ -4,10 +4,18 @@
 
 Drop new turn results into data/raw/turns/ and new GM newsletters into data/raw/newsletters/,
 then rerun. File names don't matter; the parser reads the dates from inside each file.
+
+Each run builds a new database next to the old one and swaps it in when the views are built, so
+the database never holds tables from an earlier run (dlt can't add its columns to a table that
+was created empty last time), and anyone reading it never sees one half-built.
 """
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+import tempfile
+from pathlib import Path
 
 from .claims import load_claims
 from .common import detect_kind
@@ -54,7 +62,11 @@ def parse_all() -> dict[str, list[dict]]:
 
 def main(argv=None):
     argparse.ArgumentParser(prog="rensim run").parse_args(argv)
+    return 0 if build() else 1
 
+
+def build() -> bool:
+    """Parse, load and build the views, printing what happened; True if dbt's models and tests passed."""
     if not MY_ACCOUNT:
         print("No account set: add rensim.toml (see the README) so your own turns are recognised.")
     print("Parsing raw files...")
@@ -66,19 +78,27 @@ def main(argv=None):
             print(f"  [{row['source_id']} line {row['line_no']}] {row['text'].strip()}")
 
     print(f"\nLoading into {DB.relative_to(BASE)}")
-    load_duckdb(tables, DB)
+    DATA.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=DATA, prefix=".build-") as tmp:
+        new = Path(tmp) / DB.name   # same file name: the views refer to their tables through it
+        load_duckdb(tables, new, pipelines_dir=Path(tmp) / "dlt")
 
-    # Models first, then tests, rather than `dbt build`: build skips everything downstream of a
-    # failing test, and a bad row shouldn't cost you the views. A failing test is reported instead.
-    print("\nBuilding the views (dbt run)...")
-    if not dbt(["run"], DB):
-        return 1
-    print("\nTesting them (dbt test)...")
-    if not dbt(["test"], DB):
+        # Models first, then tests, rather than `dbt build`: build skips everything downstream of a
+        # failing test, and a bad row shouldn't cost you the views. A failing test is reported instead.
+        print("\nBuilding the views (dbt run)...")
+        if not dbt(["run"], new):
+            print(f"\nThe views didn't build (above), so {DB.relative_to(BASE)} wasn't replaced.")
+            return False
+        print("\nTesting them (dbt test)...")
+        passed = dbt(["test"], new)
+        Path(f"{DB}.wal").unlink(missing_ok=True)   # the old database's, which would replay into the new
+        os.replace(new, DB)
+    if not passed:
         print("\nSome dbt tests failed (above). The views are built; check the data before trusting them.")
-        return 1
+        return False
     print("\nDone. Try:  rensim ask")
+    return True
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

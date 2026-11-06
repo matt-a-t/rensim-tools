@@ -37,7 +37,12 @@ def dbt(args: list[str], db_path: Path, work: Path = WORK) -> bool:
         "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
     }
     cli = "from dbt.cli.main import cli; cli(prog_name='dbt')"   # what the `dbt` command runs
-    return subprocess.run([sys.executable, "-c", cli, *args], env=env).returncode == 0
+    # dbt's output is captured and printed here, not left on our stdout: under the MCP server
+    # stdout is the protocol, and print() goes wherever the caller has redirected it.
+    done = subprocess.run([sys.executable, "-c", cli, *args], env=env, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+    print(done.stdout, end="")
+    return done.returncode == 0
 
 
 def main(argv=None):

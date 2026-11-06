@@ -4,19 +4,19 @@ Player newsletters and proclamations are propaganda: written in character, often
 ("it is said", "reportedly"), sometimes false on purpose. So nothing in them is stored as fact.
 Each statement becomes a **claim**: who said what, about whom, how confidently, quoted from the source.
 
-This file is both the guide for extracting claims by hand (in a Claude session) and the
-instructions `rensim extract-claims` sends to the Claude API. Output goes to
-`data/claims/<source>.json`, one file per publication, reviewed in a pull request like code.
+This is the guide Claude follows to draw claims from a publication the player shared. Claims
+are saved to `data/claims/<source>.json`, one file per publication.
 
 ## Workflow
 
-1. Put the original in `data/raw/player_publications/`.
-2. `rensim extract` writes the machine text to `data/extracted/`.
-3. If the OCR is poor (photos, faint scans), write a corrected copy to `data/transcribed/`
-   (same path). Claims are checked against the transcription when one exists.
-4. Write `data/claims/<source>.json`, or let `rensim extract-claims` draft it in
-   `data/claims/drafts/` and move it up once reviewed. `rensim claims` fails if any quote isn't found
-   word-for-word in the source text, so claims can't drift from what the page says.
+1. `intake` (pasted or attached text) or `intake_inbox` (a file in inbox/) saves the
+   publication and its text. For a photo or scan, pass the text you read from it, word for word:
+   that text is what quotes are checked against.
+2. Draw every claim from the text following the rules below.
+3. `save_claims` with the `file` intake returned, the `source` fields and the claims. It refuses
+   the lot if any quote isn't word for word in the text (whitespace aside) or a field is missing,
+   so claims can't say more than the page does. Fix what it lists and send them all again.
+4. Tell the player in a sentence or two what the publication claims and how firmly.
 
 ## File format
 
@@ -70,7 +70,7 @@ instructions `rensim extract-claims` sends to the Claude API. Output goes to
 - One claim per fact. "X, Archbishop of Y, granted indulgences" is two claims:
   an `office` claim and an `action` claim.
 - Keep names as spelled in the source; families in CAPITALS. Spelling differences
-  are resolved later through `data/aliases/` (`rensim match` proposes them; you accept or reject),
+  are resolved later through `data/aliases/` (`propose_matches`; the player says yes or no),
   not by editing. Look-alikes aren't always one family: Habsburg, HABSBOURG and HAPSBOURG are three.
 - The hedge follows the source's own words, not your opinion of the source.
 - When a source reports someone else's claim in order to deny it (the proclamation), record both:

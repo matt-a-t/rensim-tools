@@ -85,6 +85,25 @@ def check_quotes(doc: dict) -> list[str]:
     return [m for c in doc["claims"] if (m := misquote(c, text))]
 
 
+def save(file: str, source: dict, claims: list[dict]) -> tuple[Path | None, list[str]]:
+    """Write data/claims/<file's name>.json for a saved publication, if every claim checks out.
+    Returns (the path written, []) or (None, the problems); nothing is written unless all pass."""
+    if not (EXTRACTED / (file + ".txt")).resolve().is_relative_to(EXTRACTED.resolve()):
+        return None, [f"{file!r} isn't a saved publication"]
+    doc = {"source": {**{k: v for k, v in source.items() if v}, "source_id": f"pub:{Path(file).stem}", "file": file},
+           "claims": claims}
+    try:
+        problems = validate(doc) or check_quotes(doc)
+    except FileNotFoundError:
+        problems = [f"no saved text for {file}: save the publication first"]
+    if problems:
+        return None, problems
+    path = CLAIMS / f"{Path(file).stem}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path, []
+
+
 def read_aliases(path: Path) -> list[dict]:
     if not path.exists():
         return []

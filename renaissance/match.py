@@ -318,6 +318,45 @@ def apply(folder: Path = ALIASES) -> tuple[int, int, int]:
     return len(yes), len(no), len(left)
 
 
+def find(threshold: float = THRESHOLD) -> list[dict]:
+    """Proposals from the database, every kind, minus pairs already rejected or accepted."""
+    from .load import connect
+    con = connect(DB)
+    try:
+        sightings = read_sightings(con)
+    finally:
+        con.close()
+    rejected = {pair_key(r) for r in read_csv(REJECTED)}
+    # Aliases you accepted since the last `rensim run` aren't in the database yet: don't re-propose them.
+    for kind, (file, _) in ALIAS_FILES.items():
+        for r in read_csv(ALIASES / file):
+            rejected.add(pair_key({"kind": kind, "name": f"{r['family']}, {r['given']}", "persona_id": r["persona_id"]}
+                                  if kind == "persona" else {"kind": kind, "name": r["alias"], "match": r["canonical"]}))
+    return [p for kind in ("family", "place", "persona") for p in propose(kind, sightings[kind], threshold, rejected)]
+
+
+def write_proposals(proposals: list[dict]) -> None:
+    """proposals -> proposed.csv, keeping decisions already written there for pairs proposed again."""
+    decided = {pair_key(r): r["decision"] for r in read_csv(PROPOSED) if (r.get("decision") or "").strip()}
+    for p in proposals:
+        p["decision"] = decided.get(pair_key(p), "")
+    write_csv(PROPOSED, PROPOSAL_COLUMNS, proposals)
+
+
+def decide(decisions: list[dict]) -> int:
+    """Write y/n into proposed.csv for the pairs in decisions (kind, name, match, persona_id,
+    decision); returns how many pairs were found there."""
+    wanted = {pair_key(d): d["decision"] for d in decisions}
+    rows = read_csv(PROPOSED)
+    found = 0
+    for r in rows:
+        if pair_key(r) in wanted:
+            r["decision"] = wanted[pair_key(r)]
+            found += 1
+    write_csv(PROPOSED, PROPOSAL_COLUMNS, rows)
+    return found
+
+
 def precision_recall(proposals: list[dict], labels: list[dict]) -> dict:
     """Against hand-labelled pairs (kind, name, match, persona_id, is_match = 1/0): of the labelled
     pairs proposed, the share that are real (precision); of the real ones, the share proposed (recall).
@@ -354,19 +393,7 @@ def main(argv=None):
         print("No database yet: run `rensim run` first.", file=sys.stderr)
         return 1
 
-    from .load import connect
-    con = connect(DB)
-    try:
-        sightings = read_sightings(con)
-    finally:
-        con.close()
-    rejected = {pair_key(r) for r in read_csv(REJECTED)}
-    # Aliases you accepted since the last `rensim run` aren't in the database yet: don't re-propose them.
-    for kind, (file, _) in ALIAS_FILES.items():
-        for r in read_csv(ALIASES / file):
-            rejected.add(pair_key({"kind": kind, "name": f"{r['family']}, {r['given']}", "persona_id": r["persona_id"]}
-                                  if kind == "persona" else {"kind": kind, "name": r["alias"], "match": r["canonical"]}))
-    proposals = [p for kind in ("family", "place", "persona") for p in propose(kind, sightings[kind], args.threshold, rejected)]
+    proposals = find(args.threshold)
 
     if args.score:
         result = precision_recall(proposals, read_csv(args.score))
@@ -378,11 +405,7 @@ def main(argv=None):
                 print(f"  {name.replace('_', ' ')[:-1]}: {' / '.join(k)}")
         return 0
 
-    # Keep decisions already written in proposed.csv for pairs proposed again.
-    decided = {pair_key(r): r["decision"] for r in read_csv(PROPOSED) if (r.get("decision") or "").strip()}
-    for p in proposals:
-        p["decision"] = decided.get(pair_key(p), "")
-    write_csv(PROPOSED, PROPOSAL_COLUMNS, proposals)
+    write_proposals(proposals)
     counts = Counter(p["kind"] for p in proposals)
     print(f"{len(proposals)} proposed match(es) ({', '.join(f'{n} {k}' for k, n in sorted(counts.items())) or 'none'}) "
           f"in {PROPOSED}.")
