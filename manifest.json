@@ -1,0 +1,57 @@
+{
+  "manifest_version": "0.4",
+  "name": "rensim",
+  "display_name": "Renaissance turns",
+  "version": "0.1.0",
+  "description": "Plan your Renaissance play-by-mail turns with Claude: paste a turn result, ask about your game, get checked orders to email.",
+  "author": { "name": "matt-a-t" },
+  "repository": { "type": "git", "url": "https://github.com/matt-a-t/rensim-tools" },
+  "license": "MIT",
+  "server": {
+    "type": "uv",
+    "entry_point": "renaissance/mcp_server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "rensim-mcp"],
+      "env": {
+        "RENSIM_CONFIG": "${user_config.folder}/rensim.toml",
+        "RENSIM_ACCOUNT": "${user_config.account}",
+        "RENSIM_FAMILY": "${user_config.family}",
+        "RENSIM_HOME": "${user_config.home}",
+        "RUNTIME__DLTHUB_TELEMETRY": "false"
+      }
+    }
+  },
+  "user_config": {
+    "folder": {
+      "type": "directory",
+      "title": "Game folder",
+      "description": "Where your turn results, newsletters and orders are kept. Pick an empty folder to start.",
+      "required": true,
+      "default": "${DOCUMENTS}"
+    },
+    "account": {
+      "type": "string",
+      "title": "Account code",
+      "description": "Your GM account code: the first line of every turn result.",
+      "required": true
+    },
+    "family": {
+      "type": "string",
+      "title": "Family",
+      "description": "Your current family name.",
+      "required": true
+    },
+    "home": {
+      "type": "string",
+      "title": "Home town",
+      "description": "Distances are measured from here.",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "python": ">=3.11" }
+  },
+  "keywords": ["renaissance", "play-by-mail", "game"]
+}

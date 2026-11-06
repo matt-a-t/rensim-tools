@@ -1,4 +1,4 @@
-"""rensim add: fixture files are checked, named from what's inside them, have the mailing address removed
+"""add_file: fixture files are checked, named from what's inside them, have the mailing address removed
 and are saved under a temp data/raw."""
 import contextlib
 import io
@@ -37,13 +37,6 @@ class Add(unittest.TestCase):
     def add(self, path: Path, force: bool = False, keep_address: bool = False) -> tuple[Path, bool]:
         with contextlib.redirect_stdout(io.StringIO()):
             return add_file(path, self.raw, force, keep_address)
-
-    def main(self, *argv: str, stdin: bytes = b"") -> tuple[int, str]:
-        out = io.StringIO()
-        stdin = type("Stdin", (), {"buffer": io.BytesIO(stdin)})()
-        with patch.object(add, "RAW", self.raw), patch.object(add.sys, "stdin", stdin), \
-                contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            return add.main(list(argv)), out.getvalue()
 
     def test_turn_is_named_from_its_account_and_month(self):
         dest, written = self.add(self.download(JAN.read_bytes(), "turn (3).txt"))
@@ -146,31 +139,6 @@ class Add(unittest.TestCase):
                 self.assertRaisesRegex(Refused, "outside"):
             self.add(JAN)
         self.assertFalse((self.dir / "elsewhere.txt").exists())
-
-    def test_stdin(self):
-        code, out = self.main("-", stdin=JAN.read_bytes())
-        self.assertEqual(code, 0)
-        self.assertIn("saved as", out)
-        self.assertIn("rensim run", out)
-        self.assertTrue((self.raw / "turns" / "tst_1547-01.txt").exists())
-
-    def test_one_bad_file_fails_the_command_but_not_the_others(self):
-        code, out = self.main(str(self.download(b"not a game file", "notes.txt")), str(NEWS),
-                              str(self.dir / "missing.txt"))
-        self.assertEqual(code, 1)
-        self.assertIn("not added", out)
-        self.assertIn("no such file", out)
-        self.assertTrue((self.raw / "newsletters" / "NEWSL901").exists())
-
-    def test_run_only_when_something_new_was_saved(self):
-        self.add(self.download(JAN.read_bytes()))
-        with patch("renaissance.run.main") as run:
-            code, out = self.main(str(JAN), "--run")
-        run.assert_not_called()
-        self.assertIn("already saved, identical", out)
-        with patch("renaissance.run.main", return_value=0) as run:
-            self.main(str(NEWS), "--run")
-        run.assert_called_once_with([])
 
 
 if __name__ == "__main__":

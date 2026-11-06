@@ -1,5 +1,6 @@
-# On every push and pull request: the tests (made-up account in tests/fixtures), then every command
-# end to end on the fixtures, then dbt builds and tests the views and generates their docs site.
+# On every push and pull request: the tests (made-up account in tests/fixtures, every MCP tool
+# through the real server), then a load of the fixtures, dbt's build and docs site, and the
+# extension checked and packed.
 name: test
 
 on:
@@ -17,29 +18,24 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install ".[match,mcp]"
+      - run: pip install .
       - name: Tests
         run: python -m unittest -v
-      - name: Every command on the fixtures
+      - name: Load the fixtures
         working-directory: tests/fixtures
-        run: |
-          rensim config
-          rensim run
-          rensim ask
-          rensim quality
-          rensim claims
-          rensim eval-claims eval/test_herald.json --draft eval/test_herald.json
-          rensim orders orders/tst_1547-04.txt
-          rensim training
-          rensim match
+        run: python -m renaissance.run
       - name: dbt build (every model, then every test)
         working-directory: tests/fixtures
-        run: rensim dbt build
+        run: python -m renaissance.dbt_runner build
       - name: dbt docs
         working-directory: tests/fixtures
-        run: rensim dbt docs generate --static
+        run: python -m renaissance.dbt_runner docs generate --static
       # Download it from the run's summary page and open static_index.html in a browser.
       - uses: actions/upload-artifact@v4
         with:
           name: dbt-docs
           path: tests/fixtures/.dbt/target/static_index.html
+      - name: The extension's manifest is valid and it packs
+        run: |
+          npx -y @anthropic-ai/mcpb@2.1.2 validate manifest.json
+          npx -y @anthropic-ai/mcpb@2.1.2 pack . rensim.mcpb

@@ -1,11 +1,8 @@
 """Check a Renaissance orders file before sending it to the GM, and explain it in plain English.
 
-    rensim orders my_orders.txt          # check + explain (or "-" to read stdin)
-    rensim orders my_orders.txt --send   # print the text to send (no # notes)
-
-Orders are drafted with Claude in chat and emailed to the GM. The final version sent each turn is
-saved as orders/<account>_YYYY-MM.txt (with # notes explaining the plan) and loaded by `rensim run` into the
-orders_sent table, so past moves can be looked up ("what did I do in January?").
+Orders are drafted with Claude in chat (the `check_orders` tool) and emailed to the GM. The final
+version sent each turn is saved as orders/<account>_YYYY-MM.txt (with # notes explaining the plan)
+and loaded into the orders_sent table, so past moves can be looked up ("what did I do in January?").
 
 Grammar from the GM's Action Codes sheet:
 
@@ -14,7 +11,7 @@ Grammar from the GM's Action Codes sheet:
 
 Codes are separated by spaces and are not case-sensitive. Within a persona, orders go in this
 order: transfers, sells, buys, other orders, then movement/battle. Lines starting with # are
-notes for you and are stripped by --send.
+notes for you and are stripped from the text to send.
 
 What it checks against your latest turn report:
   - every code is a real code with the right shape
@@ -28,11 +25,10 @@ from __future__ import annotations
 
 import math
 import re
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .settings import ALLY_REFERENCE, MY_ACCOUNT, ORDERS_DIR, RAW
+from .settings import ALLY_REFERENCE, MY_ACCOUNT, RAW
 
 TURNS = RAW / "turns"
 
@@ -234,7 +230,7 @@ def check(text: str) -> Report:
     pos = latest_position()
     if not pos:
         rep.errors.append(f"No turn report for account {MY_ACCOUNT or '(not set)'} found in {TURNS}; "
-                          "check account in rensim.toml.")
+                          "check the account code in the extension's settings.")
         return rep
     game_date, _, turn = pos
     personae = {p["persona_id"]: p for p in turn["persona_status"]}
@@ -460,29 +456,3 @@ def send_text(text: str) -> str:
         if line.strip():
             out.append(" ".join(line.split()))
     return "\n".join(out) + "\n"
-
-
-def main(argv=None):
-    import argparse
-    ap = argparse.ArgumentParser(prog="rensim orders")
-    ap.add_argument("file", help='orders file, or "-" for stdin')
-    ap.add_argument("--send", action="store_true", help="print the text to transmit")
-    args = ap.parse_args(argv)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
-    if args.send:
-        print(send_text(text), end="")
-        return 0
-    rep = check(text)
-    print("\n".join(rep.lines))
-    for title, items in (("ERRORS", rep.errors), ("WARNINGS", rep.warnings), ("NOTES", rep.notes)):
-        if items:
-            print(f"\n{title}")
-            print("\n".join(f"  - {i}" for i in items))
-    print("\n" + ("Not ready: fix the errors above." if rep.errors else "No errors found."))
-    return 1 if rep.errors else 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

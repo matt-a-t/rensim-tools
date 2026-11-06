@@ -6,10 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-try:
-    from mcp import Client
-except ImportError:
-    Client = None
+from mcp import Client
 
 from renaissance import mcp_server
 from renaissance.mcp_server import build_server
@@ -21,7 +18,6 @@ FROM v_presence_changes p JOIN my_settings s ON lower(p.location) = lower(s.home
 WHERE p.change = 'arrived' AND p.game_date = (SELECT MAX(game_date) FROM v_turns)"""
 
 
-@unittest.skipUnless(Client, 'needs the MCP SDK: pip install "rensim-tools[mcp]"')
 class Tools(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
@@ -34,12 +30,12 @@ class Tools(unittest.IsolatedAsyncioTestCase):
         text = result.content[0].text
         return text if result.is_error else json.loads(text)
 
-    async def test_lists_the_tools(self):
+    async def test_lists_the_reading_tools(self):
         async with Client(build_server(self.db)) as client:
             tools = {t.name: t for t in (await client.list_tools()).tools}
-        self.assertEqual(set(tools), {"query", "describe", "list_questions", "ask", "what_changed",
-                                      "who_is_here", "my_past_orders", "prices"})
-        self.assertTrue(all(t.annotations.read_only_hint for t in tools.values()))
+        reading = {"query", "describe", "list_questions", "ask", "what_changed", "who_is_here",
+                   "my_past_orders", "prices", "status", "check_data", "plan_training"}
+        self.assertEqual({n for n, t in tools.items() if t.annotations.read_only_hint}, reading)
 
     async def test_who_arrived_at_my_home_town_last_turn(self):
         got = await self.call("query", sql=ARRIVED_AT_HOME)
@@ -108,4 +104,4 @@ class Tools(unittest.IsolatedAsyncioTestCase):
     async def test_no_database_yet(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.db = Path(tmp) / "renaissance.duckdb"
-            self.assertIn("rensim run", await self.call("what_changed"))
+            self.assertIn("paste or attach a turn result", await self.call("what_changed"))

@@ -79,7 +79,7 @@ class Quality(unittest.TestCase):
         found = check_addresses(None, self.dir / "raw")
         self.assertEqual(len(found), 1)
         self.assertIn("tst_1547-01.txt still has its billing block or mailing address", found[0])
-        self.assertIn("rensim add --force", found[0])
+        self.assertIn("paste it again", found[0])
 
     def test_known_gaps_from_config(self):
         gaps = known_gaps([{"account": "abc", "from": "1546-11", "to": "1547-02", "why": "changed family"}])

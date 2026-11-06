@@ -1,4 +1,4 @@
-# How dbt connects: your DuckDB file, which `rensim` passes in as RENSIM_DUCKDB.
+# How dbt connects: your DuckDB file, which renaissance.dbt_runner passes in as RENSIM_DUCKDB.
 # Models are built in the `game` schema, next to the tables dlt loads (renaissance/load.py).
 rensim:
   target: duckdb

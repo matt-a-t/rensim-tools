@@ -1,5 +1,5 @@
 """Load the normalized tables into DuckDB with dlt, the open-source Python loading library. The
-views on top are dbt models (renaissance/dbt/), built by `rensim run` after the load.
+views on top are dbt models (renaissance/dbt/), built by renaissance.run after the load.
 
 Every run reloads everything from the raw files (write_disposition="replace"), so the database is
 always a pure function of the raw files: fix a parser, rerun, done.

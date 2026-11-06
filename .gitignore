@@ -1,17 +1,20 @@
-# your game data never goes in this repo: keep it in its own folder (see README)
+# your game data never goes in this repo: it lives in the game folder you chose (see README)
 /data/
 /orders/
 /rensim.toml
-# written by `rensim match` when CI or you run it on the test fixtures
+# written by propose_matches when you run it on the test fixtures
 /tests/fixtures/data/aliases/proposed.csv
 # generated databases and dlt working state
 *.duckdb
 *.duckdb.wal
 *.sqlite
 .dlt_pipelines/
+.build-*/
 .dbt/
 __pycache__/
 *.pyc
 *.egg-info/
 build/
 .venv/
+# packed extensions (mcpb pack)
+*.mcpb

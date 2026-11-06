@@ -1,7 +1,5 @@
 """Data quality checks on the loaded database. Each check returns a list of problems; any problem
-fails the run, so a broken file stops CI instead of quietly loading half its rows.
-
-    rensim quality                  # after rensim run
+is reported (the `check_data` tool), so a broken file is noticed instead of quietly loading half its rows.
 
 The checks read the loaded tables, not the dbt models (check_addresses reads the turn files). When real data legitimately breaks a rule,
 add it to the known exceptions in your rensim.toml with the reason, rather than loosening the rule:
@@ -12,9 +10,7 @@ add it to the known exceptions in your rensim.toml with the reason, rather than 
 """
 from __future__ import annotations
 
-import argparse
 import re
-import sys
 
 from .add import has_address, shown
 from .common import detect_kind
@@ -152,10 +148,10 @@ def check_unparsed(con) -> list[str]:
 
 
 def check_addresses(con, raw=None) -> list[str]:
-    """No turn file under data/raw still has its billing block or mailing address. `rensim add`
-    takes them out; for files saved before it did, `rensim add --force` on the file does it in place."""
+    """No turn file under data/raw still has its billing block or mailing address. `add_file`
+    takes them out; a file saved some other way can be deleted and given to `intake` again."""
     raw = raw or RAW
-    return [f"{shown(p)} still has its billing block or mailing address: rensim add --force {shown(p)}"
+    return [f"{shown(p)} still has its billing block or mailing address: delete it and paste it again"
             for p in sorted(raw.rglob("*"))
             if p.is_file() and detect_kind(p) == "turn" and has_address(p.read_bytes())]
 
@@ -166,21 +162,3 @@ CHECKS = [check_turn_months, check_row_counts, check_prices, check_unparsed, che
 def run_checks(con) -> dict[str, list[str]]:
     """check name -> problems (empty list when it passes)."""
     return {c.__name__: c(con) for c in CHECKS}
-
-
-def main(argv=None):
-    from .load import connect
-    from .run import DB
-
-    argparse.ArgumentParser(prog="rensim quality").parse_args(argv)
-    results = run_checks(connect(DB))
-    for name, problems in results.items():
-        print(f"{'FAIL' if problems else 'ok  '}  {name}")
-        for p in problems:
-            print(f"        {p}")
-    if any(results.values()):
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

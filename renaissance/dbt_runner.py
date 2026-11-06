@@ -1,12 +1,11 @@
 """Run dbt against your database. The dbt project in renaissance/dbt/ turns the loaded tables into
-the star schema (dimensions, facts, analysis views); `rensim run` builds it after every load. Use
-this for any other dbt command:
+the star schema (dimensions, facts, analysis views); every load builds it. For any other dbt
+command, from the game folder (see docs/development.md):
 
-    rensim dbt build                 # every model, then every test
-    rensim dbt test                  # just the tests
-    rensim dbt ls                    # list the models, sources and tests
-    rensim dbt docs generate         # the docs site, written to .dbt/target/
-    rensim dbt docs serve            # ...and browse it at http://localhost:8080
+    python -m renaissance.dbt_runner build            # every model, then every test
+    python -m renaissance.dbt_runner test             # just the tests
+    python -m renaissance.dbt_runner docs generate    # the docs site, written to .dbt/target/
+    python -m renaissance.dbt_runner docs serve       # ...and browse it at http://localhost:8080
 
 dbt keeps its working files (compiled SQL, logs, the docs site) in .dbt/ next to rensim.toml.
 """
@@ -37,7 +36,12 @@ def dbt(args: list[str], db_path: Path, work: Path = WORK) -> bool:
         "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
     }
     cli = "from dbt.cli.main import cli; cli(prog_name='dbt')"   # what the `dbt` command runs
-    return subprocess.run([sys.executable, "-c", cli, *args], env=env).returncode == 0
+    # dbt's output is captured and printed here, not left on our stdout: under the MCP server
+    # stdout is the protocol, and print() goes wherever the caller has redirected it.
+    done = subprocess.run([sys.executable, "-c", cli, *args], env=env, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+    print(done.stdout, end="")
+    return done.returncode == 0
 
 
 def main(argv=None):

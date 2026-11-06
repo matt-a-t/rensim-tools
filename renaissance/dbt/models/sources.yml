@@ -1,11 +1,11 @@
-# The tables `rensim run` loads (renaissance/load.py): everything the models read. In the SQL,
+# The tables each load fills (renaissance/load.py): everything the models read. In the SQL,
 # {{ source('game', 'turn_market') }} names one of these.
 version: 2
 
 sources:
   - name: game
     schema: game
-    description: Tables loaded by `rensim run` from the raw files, one load per run.
+    description: Tables loaded from the raw files, all of them again on every load.
     tables:
       - name: sources
         description: Every file loaded once, with its kind, game date, real date and reliability.
@@ -34,7 +34,7 @@ sources:
       - name: dim_families
         description: >
           Each family once, with every spelling seen and how often it appears in official sources
-          vs player claims. Variant spellings you accepted (`rensim match`) are merged through data/aliases/families.csv.
+          vs player claims. Variant spellings you accepted (`decide_matches`) are merged through data/aliases/families.csv.
           Built by normalize.py.
         columns:
           - name: family_key

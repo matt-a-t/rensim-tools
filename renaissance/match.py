@@ -2,12 +2,10 @@
 regional spellings, a publication's own spelling. Matches are proposals for you to review, never
 merged on their own: Habsburg, HABSBOURG and HAPSBOURG hold separate towers in one city.
 
-    rensim match                       score name pairs -> data/aliases/proposed.csv
-    rensim match --apply               rows you marked y go to data/aliases/, n to rejected.csv
-    rensim match --score labels.csv    precision and recall against pairs you labelled by hand
-
-Mark each row of proposed.csv y or n in its `decision` column, run `rensim match --apply`, then
-`rensim run` so the accepted aliases reach the database. Needs `pip install "rensim-tools[match]"`.
+`propose_matches` scores name pairs into data/aliases/proposed.csv; `decide_matches` records the
+player's yes or no, moves accepted pairs into data/aliases/ and rejected ones to rejected.csv, and
+reloads the data so the aliases take effect. `precision_recall` scores proposals against pairs
+labelled by hand (tests/test_match.py).
 
 How a pair is scored, with Splink (https://moj-analytical-services.github.io/splink/):
 
@@ -40,10 +38,8 @@ appear in turn reports or GM newsletters are different things, so they're never 
 """
 from __future__ import annotations
 
-import argparse
 import csv
 import logging
-import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -318,6 +314,45 @@ def apply(folder: Path = ALIASES) -> tuple[int, int, int]:
     return len(yes), len(no), len(left)
 
 
+def find(threshold: float = THRESHOLD) -> list[dict]:
+    """Proposals from the database, every kind, minus pairs already rejected or accepted."""
+    from .load import connect
+    con = connect(DB)
+    try:
+        sightings = read_sightings(con)
+    finally:
+        con.close()
+    rejected = {pair_key(r) for r in read_csv(REJECTED)}
+    # Aliases accepted since the last load aren't in the database yet: don't re-propose them.
+    for kind, (file, _) in ALIAS_FILES.items():
+        for r in read_csv(ALIASES / file):
+            rejected.add(pair_key({"kind": kind, "name": f"{r['family']}, {r['given']}", "persona_id": r["persona_id"]}
+                                  if kind == "persona" else {"kind": kind, "name": r["alias"], "match": r["canonical"]}))
+    return [p for kind in ("family", "place", "persona") for p in propose(kind, sightings[kind], threshold, rejected)]
+
+
+def write_proposals(proposals: list[dict]) -> None:
+    """proposals -> proposed.csv, keeping decisions already written there for pairs proposed again."""
+    decided = {pair_key(r): r["decision"] for r in read_csv(PROPOSED) if (r.get("decision") or "").strip()}
+    for p in proposals:
+        p["decision"] = decided.get(pair_key(p), "")
+    write_csv(PROPOSED, PROPOSAL_COLUMNS, proposals)
+
+
+def decide(decisions: list[dict]) -> int:
+    """Write y/n into proposed.csv for the pairs in decisions (kind, name, match, persona_id,
+    decision); returns how many pairs were found there."""
+    wanted = {pair_key(d): d["decision"] for d in decisions}
+    rows = read_csv(PROPOSED)
+    found = 0
+    for r in rows:
+        if pair_key(r) in wanted:
+            r["decision"] = wanted[pair_key(r)]
+            found += 1
+    write_csv(PROPOSED, PROPOSAL_COLUMNS, rows)
+    return found
+
+
 def precision_recall(proposals: list[dict], labels: list[dict]) -> dict:
     """Against hand-labelled pairs (kind, name, match, persona_id, is_match = 1/0): of the labelled
     pairs proposed, the share that are real (precision); of the real ones, the share proposed (recall).
@@ -330,62 +365,3 @@ def precision_recall(proposals: list[dict], labels: list[dict]) -> dict:
     return {"precision": len(tp) / (len(tp) + len(fp)) if tp or fp else None,
             "recall": len(tp) / (len(tp) + len(fn)) if tp or fn else None,
             "true_positives": tp, "false_positives": fp, "false_negatives": fn}
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser(prog="rensim match", description=__doc__.split("\n\n")[0])
-    ap.add_argument("--apply", action="store_true", help="move decided rows of proposed.csv into data/aliases/")
-    ap.add_argument("--score", metavar="LABELS.csv", type=Path, help="precision and recall against hand-labelled pairs")
-    ap.add_argument("--threshold", type=float, default=THRESHOLD, help=f"lowest match probability to propose (default {THRESHOLD})")
-    args = ap.parse_args(argv)
-
-    if args.apply:
-        yes, no, left = apply()
-        print(f"{yes} accepted into data/aliases/, {no} rejected, {left} left to decide.")
-        if yes:
-            print("Run `rensim run` so the database uses them.")
-        return 0
-    try:
-        import splink  # noqa: F401
-    except ImportError:
-        print('rensim match needs Splink: pip install "rensim-tools[match]"', file=sys.stderr)
-        return 1
-    if not DB.exists():
-        print("No database yet: run `rensim run` first.", file=sys.stderr)
-        return 1
-
-    from .load import connect
-    con = connect(DB)
-    try:
-        sightings = read_sightings(con)
-    finally:
-        con.close()
-    rejected = {pair_key(r) for r in read_csv(REJECTED)}
-    # Aliases you accepted since the last `rensim run` aren't in the database yet: don't re-propose them.
-    for kind, (file, _) in ALIAS_FILES.items():
-        for r in read_csv(ALIASES / file):
-            rejected.add(pair_key({"kind": kind, "name": f"{r['family']}, {r['given']}", "persona_id": r["persona_id"]}
-                                  if kind == "persona" else {"kind": kind, "name": r["alias"], "match": r["canonical"]}))
-    proposals = [p for kind in ("family", "place", "persona") for p in propose(kind, sightings[kind], args.threshold, rejected)]
-
-    if args.score:
-        result = precision_recall(proposals, read_csv(args.score))
-        fmt = lambda v: "n/a" if v is None else f"{v:.2f}"
-        print(f"precision {fmt(result['precision'])}  recall {fmt(result['recall'])}  "
-              f"(threshold {args.threshold}, {len(read_csv(args.score))} labelled pairs)")
-        for name in ("false_positives", "false_negatives"):
-            for k in result[name]:
-                print(f"  {name.replace('_', ' ')[:-1]}: {' / '.join(k)}")
-        return 0
-
-    # Keep decisions already written in proposed.csv for pairs proposed again.
-    decided = {pair_key(r): r["decision"] for r in read_csv(PROPOSED) if (r.get("decision") or "").strip()}
-    for p in proposals:
-        p["decision"] = decided.get(pair_key(p), "")
-    write_csv(PROPOSED, PROPOSAL_COLUMNS, proposals)
-    counts = Counter(p["kind"] for p in proposals)
-    print(f"{len(proposals)} proposed match(es) ({', '.join(f'{n} {k}' for k, n in sorted(counts.items())) or 'none'}) "
-          f"in {PROPOSED}.")
-    if proposals:
-        print("Mark each y or n in its decision column, then run `rensim match --apply`.")
-    return 0

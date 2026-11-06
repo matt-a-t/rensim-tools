@@ -7,12 +7,12 @@
 - `dim_personae` lists each character once by its game ID.
 - Road events get a direction-independent route key ('nan|pegu').
 - Lookup results get straight-line miles from the location the turn report was about.
-- `my_settings` holds your account, family and home from rensim.toml, for the SQL views.
+- `my_settings` holds your account, family and home from the extension's settings, for the SQL views.
 - Family names get a `*_key` resolved through data/aliases/families.csv,
   and `dim_families` lists each family once with where it appears (official sources vs claims).
 - Characters named without an ID (newsletter actors, besiegers, claim subjects) get a
   `*_persona_id` from data/aliases/personae.csv.
-The alias files hold only matches you accepted (`rensim match`); nothing is merged on looks alone.
+The alias files hold only matches you accepted (`decide_matches`); nothing is merged on looks alone.
 """
 from __future__ import annotations
 
