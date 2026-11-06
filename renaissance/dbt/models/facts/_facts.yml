@@ -174,7 +174,7 @@ models:
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
       - name: actor_persona_id
-        description: The character's game ID, once you've matched the actor's name to one (`rensim match`).
+        description: The character's game ID, once you've matched the actor's name to one (`decide_matches`).
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
       - name: target_family_key
@@ -206,7 +206,7 @@ models:
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
       - name: besieger_persona_id
-        description: The character's game ID, once you've matched the besieger's name to one (`rensim match`).
+        description: The character's game ID, once you've matched the besieger's name to one (`decide_matches`).
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}
 
@@ -267,7 +267,7 @@ models:
               arguments:
                 values: [asserted, reported, rumored, denied]
       - name: quote
-        description: The exact words; `rensim claims` fails if they aren't in the source text.
+        description: The exact words; `save_claims` refuses them if they aren't in the source text.
         data_tests: [not_null]
       - name: place_key
         data_tests:
@@ -279,6 +279,6 @@ models:
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_families')", field: family_key}}
       - name: subject_persona_id
-        description: The character's game ID, once you've matched the subject's name to one (`rensim match`).
+        description: The character's game ID, once you've matched the subject's name to one (`decide_matches`).
         data_tests:
           - relationships: {arguments: {to: "source('game', 'dim_personae')", field: persona_id}}

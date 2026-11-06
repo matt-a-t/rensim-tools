@@ -1,28 +1,22 @@
-"""Save a turn result or GM newsletter into data/raw, named the usual way.
+"""Save a turn result or GM newsletter into data/raw, named the usual way (`intake` uses it).
 
-    rensim add FILE... [--force] [--run] [--keep-address]
-    rensim add -                        text pasted on stdin (end with Ctrl-D)
-
-Each file is read straight away, so one the parser can't handle fails now rather than partway
-through `rensim run`. Turns are saved as data/raw/turns/<account>_<YYYY-MM>.txt and newsletters
+Each file is parsed straight away, so one the parser can't handle is refused now rather than
+failing the next load. Turns are saved as data/raw/turns/<account>_<YYYY-MM>.txt and newsletters
 as data/raw/newsletters/NEWSL<issue>.
 
 A turn's billing block and mailing address (between the ACTIONS= line and the Copyright line) are
-replaced with one line saying so, so the file is safe to commit. The fee lines in it stay:
-`rensim orders` reads TOTAL ACTION FEES to estimate what your orders will cost.
+replaced with one line saying so. The fee lines in it stay: `check_orders` reads TOTAL ACTION
+FEES to estimate what your orders will cost.
 """
 from __future__ import annotations
 
-import argparse
 import re
-import sys
-import tempfile
 from pathlib import Path
 
 from .common import detect_kind
 from .parse_news import parse_newsletter
 from .parse_turn import address_block, parse_turn
-from .settings import BASE, MY_ACCOUNT, RAW
+from .settings import BASE, MY_ACCOUNT
 
 PARSERS = {"turn": parse_turn, "newsletter": parse_newsletter}
 ACCOUNT_RE = re.compile(r"[A-Za-z0-9]+")   # turn files are named from it, so nothing else gets in
@@ -88,10 +82,9 @@ def add_file(path: Path, raw: Path, force: bool = False, keep_address: bool = Fa
     if kind == "turn" and not keep_address:
         removed = remove_address(data)
         if removed is None and require_address:
-            raise Refused("no Copyright line, so the address couldn't be found to remove "
-                          "(--keep-address saves it as it is)")
+            raise Refused("no Copyright line, so the address couldn't be found to remove")
         if removed is None:
-            print("  warning: no Copyright line, so the address wasn't found; check the file before committing")
+            print("  warning: no Copyright line, so the address wasn't found and is still in the saved file")
         data = removed or data
     dest = target(kind, source, raw)
     if not dest.resolve().is_relative_to(raw.resolve()):
@@ -100,77 +93,15 @@ def add_file(path: Path, raw: Path, force: bool = False, keep_address: bool = Fa
         if dest.read_bytes() == data:
             return dest, False
         if not force:
-            raise Refused(f"{shown(dest)} already exists with different content (--force replaces it)")
+            raise Refused(f"{shown(dest)} already exists with different content")
 
     if kind == "turn" and MY_ACCOUNT and source["account"].upper() != MY_ACCOUNT:
         print(f"  warning: account {source['account']} isn't yours ({MY_ACCOUNT}); "
               "fine for an ally's shared report")
     unparsed = len(tables.get("unparsed_lines", []))
     if unparsed:
-        print(f"  warning: {unparsed} line(s) didn't match any known pattern (`rensim run` lists them)")
+        print(f"  warning: {unparsed} line(s) didn't match any known pattern (kept in table unparsed_lines)")
     if write:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(data)
     return dest, True
-
-
-def read_stdin(folder: Path) -> Path:
-    """Pasted text, saved to a file the parsers can read. Terminals paste UTF-8; the game's files
-    are cp1252, so it's stored that way."""
-    path = folder / "pasted.txt"
-    text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
-    path.write_bytes(text.encode("cp1252", errors="replace"))
-    return path
-
-
-def save(label: str, path: Path, raw: Path, force: bool = False, keep_address: bool = False,
-         **options) -> bool | None:
-    """add_file with what happened printed under label: True if saved, False if an identical copy
-    was already there, None if it was refused (the reason on stderr). options go to add_file."""
-    print(f"{label}:", flush=True)   # before any error on stderr, when piped
-    try:
-        dest, written = add_file(path, raw, force, keep_address, **options)
-    except Refused as e:
-        print(f"  not added: {e}", file=sys.stderr)
-        return None
-    done = "saved as" if options.get("write", True) else "would be saved as"
-    print(f"  {done if written else 'already saved, identical:'} {shown(dest)}")
-    return written
-
-
-def finish(saved: int, failed: int, run: bool) -> int:
-    """The exit code, after `rensim run` if asked and anything new was saved."""
-    if saved and run:
-        from .run import main as run_all   # loads dlt and dbt, so only when asked
-        print()
-        return run_all([]) or (1 if failed else 0)
-    if saved:
-        print("\nNext: rensim run")
-    return 1 if failed else 0
-
-
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="rensim add", description=__doc__.split("\n\n")[0])
-    ap.add_argument("files", nargs="+", metavar="FILE", help="turn results or newsletters; - for stdin")
-    ap.add_argument("--force", action="store_true", help="replace a saved file with different content")
-    ap.add_argument("--keep-address", action="store_true", help="save turns with the mailing address still in")
-    ap.add_argument("--run", action="store_true", help="then rensim run, if anything new was saved")
-    args = ap.parse_args(argv)
-
-    failed = saved = 0
-    with tempfile.TemporaryDirectory() as tmp:
-        for name in args.files:
-            path = read_stdin(Path(tmp)) if name == "-" else Path(name)
-            label = "(stdin)" if name == "-" else name
-            if not path.is_file():
-                print(f"{label}: no such file", file=sys.stderr)
-                failed += 1
-                continue
-            written = save(label, path, RAW, args.force, args.keep_address)
-            failed += written is None
-            saved += bool(written)
-    return finish(saved, failed, args.run)
-
-
-if __name__ == "__main__":
-    sys.exit(main())

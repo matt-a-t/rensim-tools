@@ -2,9 +2,7 @@
 
 See renaissance/claims_extraction.md for the format. Every claim keeps its verbatim quote, and
 check_quotes() verifies each quote really appears in the source text, so a claim can't say
-more than the page does.
-
-    rensim claims        # check every claims file; exits 1 if any is malformed or misquotes
+more than the page does. `save` writes one, from the `save_claims` tool, only when every check passes.
 """
 from __future__ import annotations
 
@@ -35,7 +33,7 @@ def source_text(file: str) -> str:
         path = base / (file + ".txt")
         if path.exists():
             return path.read_text(encoding="utf-8")
-    raise FileNotFoundError(f"No extracted or transcribed text for {file}; run rensim extract")
+    raise FileNotFoundError(f"No extracted or transcribed text for {file}")
 
 
 def squash(text: str) -> str:
@@ -112,7 +110,7 @@ def read_aliases(path: Path) -> list[dict]:
 
 
 def load_family_aliases() -> dict[str, str]:
-    """ALIAS -> CANONICAL, from data/aliases/families.csv (variants you accepted in `rensim match`)."""
+    """ALIAS -> CANONICAL, from data/aliases/families.csv (variants accepted through `decide_matches`)."""
     return {r["alias"].strip().upper(): r["canonical"].strip().upper() for r in read_aliases(FAMILY_ALIASES)}
 
 
@@ -166,21 +164,3 @@ def load_claims() -> dict[str, list[dict]]:
                         "bq": float(m["bq"]), "price": int(m["price"]),
                     })
     return out
-
-
-def main(argv=None):
-    """Check every claims file: well-formed, and every quote really in its source."""
-    import sys
-    docs, bad = read_claim_files(), 0
-    for doc in docs:
-        try:
-            problems = validate(doc) or check_quotes(doc)
-        except FileNotFoundError as e:
-            problems = [str(e)]
-        bad += bool(problems)
-        print(f"{'FAIL' if problems else 'ok  '}  {doc['_path']}")
-        for p in problems:
-            print(f"        {p}")
-    print(f"\n{len(docs) - bad} of {len(docs)} claims file(s) OK.")
-    if bad:
-        sys.exit(1)

@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "rensim": {
-      "command": "rensim",
-      "args": ["mcp"]
-    }
-  }
-}

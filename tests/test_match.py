@@ -7,11 +7,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-try:
-    import splink  # noqa: F401
-except ImportError:
-    splink = None
-
 from renaissance import claims
 from renaissance.load import connect
 from renaissance.match import apply, pair_key, precision_recall, propose, read_sightings
@@ -85,7 +80,6 @@ LABELS = [
 ]
 
 
-@unittest.skipUnless(splink, 'needs Splink: pip install "rensim-tools[match]"')
 class LabelledSample(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -113,7 +107,6 @@ class LabelledSample(unittest.TestCase):
         self.assertFalse([p for p in propose("family", FAMILIES, rejected=rejected) if "LANISTER" in (p["name"], p["match"])])
 
 
-@unittest.skipUnless(splink, 'needs Splink: pip install "rensim-tools[match]"')
 class OnTheFixtures(unittest.TestCase):
     def test_newsletter_actor_matches_her_id(self):
         con = connect(fixture_db())

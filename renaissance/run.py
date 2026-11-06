@@ -1,9 +1,8 @@
 """Parse every file in data/raw, normalize, load into DuckDB, then build the views with dbt.
 
-    rensim run
+    python -m renaissance.run        # from the game folder; the MCP server's `refresh` does the same
 
-Drop new turn results into data/raw/turns/ and new GM newsletters into data/raw/newsletters/,
-then rerun. File names don't matter; the parser reads the dates from inside each file.
+File names don't matter; the parser reads the dates from inside each file.
 
 Each run builds a new database next to the old one and swaps it in when the views are built, so
 the database never holds tables from an earlier run (dlt can't add its columns to a table that
@@ -61,14 +60,14 @@ def parse_all() -> dict[str, list[dict]]:
 
 
 def main(argv=None):
-    argparse.ArgumentParser(prog="rensim run").parse_args(argv)
+    argparse.ArgumentParser(prog="python -m renaissance.run").parse_args(argv)
     return 0 if build() else 1
 
 
 def build() -> bool:
     """Parse, load and build the views, printing what happened; True if dbt's models and tests passed."""
     if not MY_ACCOUNT:
-        print("No account set: add rensim.toml (see the README) so your own turns are recognised.")
+        print("No account set (RENSIM_ACCOUNT, or account in rensim.toml), so your own turns aren't recognised.")
     print("Parsing raw files...")
     tables = parse_all()
     unparsed = tables.get("unparsed_lines", [])
@@ -96,7 +95,7 @@ def build() -> bool:
     if not passed:
         print("\nSome dbt tests failed (above). The views are built; check the data before trusting them.")
         return False
-    print("\nDone. Try:  rensim ask")
+    print("\nDone.")
     return True
 
 

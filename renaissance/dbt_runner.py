@@ -1,12 +1,11 @@
 """Run dbt against your database. The dbt project in renaissance/dbt/ turns the loaded tables into
-the star schema (dimensions, facts, analysis views); `rensim run` builds it after every load. Use
-this for any other dbt command:
+the star schema (dimensions, facts, analysis views); every load builds it. For any other dbt
+command, from the game folder (see docs/development.md):
 
-    rensim dbt build                 # every model, then every test
-    rensim dbt test                  # just the tests
-    rensim dbt ls                    # list the models, sources and tests
-    rensim dbt docs generate         # the docs site, written to .dbt/target/
-    rensim dbt docs serve            # ...and browse it at http://localhost:8080
+    python -m renaissance.dbt_runner build            # every model, then every test
+    python -m renaissance.dbt_runner test             # just the tests
+    python -m renaissance.dbt_runner docs generate    # the docs site, written to .dbt/target/
+    python -m renaissance.dbt_runner docs serve       # ...and browse it at http://localhost:8080
 
 dbt keeps its working files (compiled SQL, logs, the docs site) in .dbt/ next to rensim.toml.
 """

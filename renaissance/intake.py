@@ -1,8 +1,7 @@
 """Take in whatever a player has for the game and file it in the game folder.
 
-A GM turn result or newsletter is checked and saved by `add_file` (address removed), the same as
-`rensim add`. An ally's compiled city data (.docx named like ALLY_REFERENCE) goes where the loader
-looks for it. Anything else (a player newsletter, a proclamation, a letter or message from
+A GM turn result or newsletter is checked and saved by `add_file` (address removed). An ally's
+compiled city data (.docx named like ALLY_REFERENCE) goes where the loader looks for it. Anything else (a player newsletter, a proclamation, a letter or message from
 another player) is saved as a player publication: the original under
 data/raw/player_publications/, and its text under data/extracted/, where the claims checks look
 for it, ready for Claude to draw claims from.

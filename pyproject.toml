@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rensim-tools"
 version = "0.1.0"
-description = "Parse Renaissance (play-by-mail) turn results and newsletters into a database, and check your orders before sending them."
+description = "A Claude desktop extension for Renaissance (play-by-mail): your turn results in a database, and orders checked before you send them."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -20,12 +20,7 @@ dependencies = [
     "splink==5.0.0",
 ]
 
-[project.optional-dependencies]
-extract = ["Pillow"]
-llm = ["anthropic==2.1.0"]
-
 [project.scripts]
-rensim = "renaissance.cli:main"
 rensim-mcp = "renaissance.mcp_server:main"
 
 [tool.setuptools]

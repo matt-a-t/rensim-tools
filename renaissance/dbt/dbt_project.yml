@@ -1,5 +1,5 @@
 # The dbt project that turns the loaded tables into the star schema (docs/architecture.md, "Data model").
-# Run it through `rensim run` or `rensim dbt ...`, which point it at your database.
+# Run it through renaissance.run or renaissance.dbt_runner, which point it at your database.
 name: rensim
 version: "1.0.0"
 profile: rensim

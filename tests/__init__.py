@@ -39,7 +39,7 @@ def fixture_db() -> Path:
             tables = parse_all()
         db = load(tables, folder)
         if not dbt(["--quiet", "run"], db, work=folder / "dbt"):
-            raise RuntimeError("dbt run failed on the fixtures; run `rensim run` in tests/fixtures to see why")
+            raise RuntimeError("dbt run failed on the fixtures; run `python -m renaissance.run` in tests/fixtures to see why")
         _FIXTURE_DB = db
     return _FIXTURE_DB
 

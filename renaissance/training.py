@@ -1,7 +1,4 @@
-"""Plan training orders for personae who start the turn together.
-
-    rensim training                      # best plan for every co-located pair
-    rensim training --skills fortification,assassination
+"""Plan training orders for personae who start the turn together (the `plan_training` tool).
 
 Rules (Skills section): personae who start the turn at the same location may train each other;
 no persona may train a given other persona more than once per turn; when the trainer's rating is
@@ -14,9 +11,7 @@ as already raised by earlier training in the same turn. Order code: I<trainee nu
 """
 from __future__ import annotations
 
-import argparse
 import math
-import sys
 
 from .common import place_key
 from .orders import SKILL_CODES, latest_position
@@ -58,28 +53,3 @@ def plan(only_skills: set[str] | None = None):
                                "from": have, "to": new, "gain": new - have,
                                "code": f"i{s_id}{LETTER[skill]}"})
     return game_date, personae, orders
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser(prog="rensim training")
-    ap.add_argument("--skills", help="comma-separated skills to train (default: any)")
-    args = ap.parse_args(argv)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    only = set(args.skills.split(",")) if args.skills else None
-    game_date, personae, orders = plan(only)
-    print(f"Training plan from the {game_date} turn report ({len(orders)} orders):\n")
-    print(f"  {'trainer':<10} {'trainee':<10} {'skill':<15} {'from':>5} {'to':>6}  code")
-    for o in orders:
-        print(f"  {o['trainer']['given_name']:<10} {o['trainee']['given_name']:<10} {o['skill']:<15} "
-              f"{o['from']:>5.0f} {o['to']:>6.1f}  {o['code']}")
-    print(f"\n  Total gain: {sum(o['gain'] for o in orders):.0f} skill points.\n")
-    print("Order codes per persona (add after '*Location .number'):")
-    for p in personae:
-        codes = [o["code"] for o in orders if o["trainer"] is p]
-        if codes:
-            print(f"  *{p['location']} .{p['persona_id']} {' '.join(codes)}")
-
-
-if __name__ == "__main__":
-    main()
