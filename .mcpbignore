@@ -1,0 +1,13 @@
+# Only the package and pyproject.toml go in the .mcpb: Claude Desktop installs the rest with uv.
+.git/
+.github/
+.venv/
+tests/
+docs/
+plugins/
+.claude-plugin/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+*.mcpb
