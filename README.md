@@ -11,7 +11,9 @@ other setup.
 ## Install
 
 1. Install the [Claude desktop app](https://claude.ai/download) (Mac or Windows) and sign in.
-2. Download `rensim.mcpb` from the [latest release](https://github.com/matt-a-t/rensim-tools/releases/latest).
+2. Download [`rensim.mcpb`](https://github.com/matt-a-t/rensim-tools/releases/latest/download/rensim.mcpb),
+   the latest release. To update later, download it again and install it the same way: your game
+   folder stays as it is.
 3. In Claude, open **Settings → Extensions → Advanced settings → Install Extension…** and choose
    the file. (Double-clicking the file may work too, but not on every computer.)
 4. Fill in the form:

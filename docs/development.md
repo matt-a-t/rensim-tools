@@ -109,3 +109,21 @@ The answer should be Ramsay BOLTON, arriving in Carlisle with 200 troops, and no
 CI (`.github/workflows/test.yml`) runs the tests, loads the fixtures, runs `dbt build`, publishes
 the dbt docs site as a download from each run's summary page, and validates and packs the
 extension.
+
+## Releasing
+
+1. Set the new version in both `manifest.json` and `pyproject.toml`, and merge that to `main`.
+2. Tag the merge and push the tag:
+
+   ```bash
+   git tag v0.2.0 origin/main && git push origin v0.2.0
+   ```
+
+`.github/workflows/release.yml` checks the tag matches both versions, runs the tests, packs the
+extension and publishes a GitHub release with `rensim.mcpb` and notes generated from the merged
+pull requests. The README links to `releases/latest/download/rensim.mcpb`, so players always get
+the newest. Check an upgrade over an installed version keeps the extension's settings before
+relying on it.
+
+The bundle isn't signed (Claude Desktop logs "Installing unsigned extension"). Signing
+(`mcpb sign`) needs a code-signing certificate.

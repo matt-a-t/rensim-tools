@@ -1,0 +1,42 @@
+# On a version tag (v0.2.0): test, pack the extension and publish it as a GitHub release. The file
+# is always rensim.mcpb, so the README's link to releases/latest/download/rensim.mcpb keeps working.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RUNTIME__DLTHUB_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: The tag matches the version in manifest.json and pyproject.toml
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(python -c "import json; print(json.load(open('manifest.json'))['version'])")
+          project=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          if [ "$tag" != "$manifest" ] || [ "$tag" != "$project" ]; then
+            echo "Tag $GITHUB_REF_NAME, manifest.json $manifest, pyproject.toml $project: make them the same." >&2
+            exit 1
+          fi
+      - run: pip install .
+      - name: Tests
+        run: python -m unittest
+      - name: Pack the extension
+        run: |
+          npx -y @anthropic-ai/mcpb@2.1.2 validate manifest.json
+          npx -y @anthropic-ai/mcpb@2.1.2 pack . rensim.mcpb
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" rensim.mcpb --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
