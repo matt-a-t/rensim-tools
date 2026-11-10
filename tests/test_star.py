@@ -10,7 +10,7 @@ import duckdb
 from renaissance.dbt_runner import dbt
 from renaissance.load import DATASET, connect
 
-from . import copy_db, fixture_db
+from . import FIXTURES, copy_db, fixture_db, load
 
 FACTS = ["fact_persona_status", "fact_persona_skills", "fact_persona_assets", "fact_presence", "fact_lookups",
          "fact_market_prices", "fact_events", "fact_sieges", "fact_orders", "fact_claims"]
@@ -90,6 +90,24 @@ class OfficeHistory(unittest.TestCase):
             WHERE o.persona_id = 104
               AND '1547-04' >= o.valid_from AND ('1547-04' < o.valid_to OR o.valid_to IS NULL)""").fetchall()
         self.assertEqual(office, [(None,)])
+
+
+class OnlyTurnReports(unittest.TestCase):
+    """A new player's first load: one turn report, nothing else. The sources table gets only the
+    columns turn reports have, so the models must not rely on ones only other documents set."""
+
+    def test_views_build(self):
+        from renaissance.normalize import combine, normalize
+        from renaissance.parse_turn import parse_turn
+
+        with tempfile.TemporaryDirectory() as work:
+            folder = Path(work)
+            tables = normalize(combine([parse_turn(FIXTURES / "data/raw/turns/tst_1547-01.txt")]))
+            db = load(tables, folder)
+            self.assertTrue(dbt(["--quiet", "run"], db, work=folder / "dbt"), "dbt run failed (output above)")
+            with connect(db) as con:
+                con.execute("SELECT * FROM v_markets").fetchall()
+                con.execute("SELECT * FROM v_claims").fetchall()
 
 
 if __name__ == "__main__":

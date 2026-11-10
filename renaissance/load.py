@@ -46,8 +46,20 @@ OPTIONAL_TABLES = {
                                "location_key text",
 }
 
+# Columns the dbt models use that only some kinds of row set. A table's columns come from its rows,
+# so it can lack them: only orders, ally references and player publications give a source a title,
+# so a player with just turn reports and newsletters would have no sources.title.
+OPTIONAL_COLUMNS = {
+    "sources": "title text",
+}
+
 
 DUCKDB_TYPES = {"bigint": "BIGINT", "double": "DOUBLE", "bool": "BOOLEAN", "text": "VARCHAR"}
+
+
+def column_defs(cols: str) -> list[str]:
+    """'a text, b bigint' -> ['"a" VARCHAR', '"b" BIGINT']."""
+    return [f'"{c}" {DUCKDB_TYPES[t]}' for c, t in (col.split() for col in cols.split(", "))]
 
 
 def create_empty_tables(con, tables: dict[str, list[dict]]) -> None:
@@ -55,9 +67,15 @@ def create_empty_tables(con, tables: dict[str, list[dict]]) -> None:
     for name, cols in OPTIONAL_TABLES.items():
         if tables.get(name):
             continue
-        col_defs = ", ".join(f'"{c}" {DUCKDB_TYPES[t]}' for c, t in (col.split() for col in cols.split(", ")))
         con.execute(f'DROP TABLE IF EXISTS "{name}"')
-        con.execute(f'CREATE TABLE "{name}" ({col_defs})')
+        con.execute(f'CREATE TABLE "{name}" ({", ".join(column_defs(cols))})')
+
+
+def add_missing_columns(con) -> None:
+    """Add each OPTIONAL_COLUMNS column its table didn't get from this run's rows, all NULL."""
+    for name, cols in OPTIONAL_COLUMNS.items():
+        for col_def in column_defs(cols):
+            con.execute(f'ALTER TABLE "{name}" ADD COLUMN IF NOT EXISTS {col_def}')
 
 
 def infer_columns(rows: list[dict]) -> dict[str, str]:
@@ -99,6 +117,7 @@ def load_duckdb(tables: dict[str, list[dict]], db_path: Path, pipelines_dir: Pat
     with duckdb.connect(str(db_path)) as con:
         con.execute(f"SET schema = '{DATASET}'")
         create_empty_tables(con, tables)
+        add_missing_columns(con)
 
 
 def connect(db_path: Path):
