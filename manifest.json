@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "rensim",
   "display_name": "Renaissance turns",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Plan your Renaissance play-by-mail turns with Claude: paste a turn result, ask about your game, get checked orders to email.",
   "author": { "name": "matt-a-t" },
   "repository": { "type": "git", "url": "https://github.com/matt-a-t/rensim-tools" },
