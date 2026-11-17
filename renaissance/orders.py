@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .settings import ALLY_REFERENCE, MY_ACCOUNT, RAW
+from .settings import ALLY_REFERENCE, MY_ACCOUNT, RAW, WHERE_SETTINGS
 
 TURNS = RAW / "turns"
 
@@ -230,7 +230,7 @@ def check(text: str) -> Report:
     pos = latest_position()
     if not pos:
         rep.errors.append(f"No turn report for account {MY_ACCOUNT or '(not set)'} found in {TURNS}; "
-                          "check the account code in the extension's settings.")
+                          f"check the account code: it's set {WHERE_SETTINGS}.")
         return rep
     game_date, _, turn = pos
     personae = {p["persona_id"]: p for p in turn["persona_status"]}

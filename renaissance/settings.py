@@ -10,7 +10,9 @@ current folder is used with the defaults below. Relative folders are taken from 
 folder.
 
 Environment variables override the file: RENSIM_ACCOUNT, RENSIM_FAMILY, RENSIM_HOME,
-RENSIM_DATA_DIR, RENSIM_ORDERS_DIR, and RENSIM_ALLY_REFERENCE.
+RENSIM_DATA_DIR, RENSIM_ORDERS_DIR, and RENSIM_ALLY_REFERENCE. RENSIM_HOSTED=1 means this process
+serves one player of the hosted server (renaissance.hosted), which sets the player up through its
+`set_up` tool rather than the extension's install form.
 """
 from __future__ import annotations
 
@@ -52,3 +54,8 @@ ORDERS_DIR = (BASE / _values["orders_dir"]).resolve()
 ALLY_REFERENCE = _values["ally_reference"]   # glob under data/raw: an ally's compiled city data
 QUALITY = _values.get("quality", {})         # known exceptions for renaissance.quality
 ALLY = _values.get("ally", {})               # who compiled the ally reference: title, publisher, account, family, game_date
+SHARED = RAW / "shared"                      # other players' turn results shared with you: shared/<account>/turns/
+HOSTED = os.environ.get("RENSIM_HOSTED") == "1"
+# Where the player changes who they are, for messages that tell them to.
+WHERE_SETTINGS = ("with set_up (tell Claude your account code, family and home town)" if HOSTED
+                  else "in Claude's settings: Extensions, Renaissance turns, Configure. Then restart Claude")

@@ -85,6 +85,12 @@ about each pair.
   plugin, since it looks for programs this version doesn't need. Point the extension at your old
   data folder and it picks up everything already there (any `rensim.toml` settings too).
 
+## On the web, for a group of players
+
+rensim can also run on a server for several players, who each add it to Claude as a connector
+and use it from any Claude app, phone included. [docs/hosting.md](docs/hosting.md) covers setting
+it up and what players do.
+
 ## How it works, and working on it
 
 [docs/architecture.md](docs/architecture.md) covers how it's built and what's in the database.

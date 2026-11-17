@@ -11,3 +11,6 @@ build/
 __pycache__/
 *.pyc
 *.mcpb
+Dockerfile
+.dockerignore
+deploy/

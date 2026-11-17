@@ -1,0 +1,24 @@
+# rensim on one Linux server (EC2, Google Compute Engine, any VPS) with Docker: Caddy in front for
+# HTTPS (it gets the certificate itself), rensim behind it. See docs/hosting.md.
+#
+#   cp deploy/rensim.env.example deploy/rensim.env    # then fill it in
+#   docker compose -f deploy/compose.yml up -d --build
+services:
+  rensim:
+    build: ..
+    env_file: rensim.env
+    volumes:
+      - rensim-data:/data
+    restart: unless-stopped
+  caddy:
+    image: caddy:2.10
+    ports: ["80:80", "443:443"]
+    environment:
+      RENSIM_DOMAIN: ${RENSIM_DOMAIN:?set RENSIM_DOMAIN, e.g. rensim.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    restart: unless-stopped
+volumes:
+  rensim-data:
+  caddy-data:

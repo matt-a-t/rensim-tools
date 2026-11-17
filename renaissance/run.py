@@ -25,20 +25,33 @@ from .orders import parse_orders_file
 from .parse_news import parse_newsletter
 from .parse_reference import parse_reference
 from .parse_turn import parse_turn
-from .settings import ALLY_REFERENCE, BASE, DATA, MY_ACCOUNT, ORDERS_DIR, RAW
+from .settings import ALLY_REFERENCE, BASE, DATA, MY_ACCOUNT, ORDERS_DIR, RAW, SHARED
 
 DB = DATA / "renaissance.duckdb"
 
 
+def raw_files() -> list[Path]:
+    """The turn reports and GM newsletters to parse: the player's own first, then those other
+    players shared (data/raw/shared/<account>/). Player publications come in through data/claims/
+    (see renaissance/claims_extraction.md) and reference documents aren't loaded."""
+    files = [p for p in RAW.rglob("*") if p.is_file() and not {"player_publications", "reference"} & set(p.parts)]
+    shared = lambda p: p.is_relative_to(SHARED)
+    return sorted(p for p in files if not shared(p)) + sorted(p for p in files if shared(p))
+
+
 def parse_all() -> dict[str, list[dict]]:
     parsed = []
-    # Turn reports and GM newsletters are parsed here; player publications come in through
-    # data/claims/ (see renaissance/claims_extraction.md) and reference documents aren't loaded.
-    for path in sorted(p for p in RAW.rglob("*") if p.is_file()
-                       and not {"player_publications", "reference"} & set(p.parts)):
+    seen = set()   # source_ids: a turn shared with you that you also saved yourself is loaded once
+    for path in raw_files():
         kind = detect_kind(path)
         if kind == "turn":
-            parsed.append(parse_turn(path))
+            tables = parse_turn(path)
+            source_id = tables["sources"][0]["source_id"]
+            if source_id in seen:
+                print(f"  skipped (already loaded from another file): {path.relative_to(BASE)}")
+                continue
+            seen.add(source_id)
+            parsed.append(tables)
         elif kind == "newsletter":
             parsed.append(parse_newsletter(path))
         else:

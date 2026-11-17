@@ -1,0 +1,9 @@
+.git
+.github
+.venv
+tests
+docs
+deploy
+*.mcpb
+**/__pycache__
+**/*.pyc

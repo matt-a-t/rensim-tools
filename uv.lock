@@ -2085,9 +2085,11 @@ dependencies = [
     { name = "dlt", extra = ["duckdb"] },
     { name = "duckdb" },
     { name = "mcp" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pypdf" },
     { name = "python-docx" },
     { name = "splink" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
@@ -2097,9 +2099,11 @@ requires-dist = [
     { name = "dlt", extras = ["duckdb"], specifier = "==1.31.0" },
     { name = "duckdb", specifier = "==1.5.6" },
     { name = "mcp", specifier = "==2.3.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = "==2.15.1" },
     { name = "pypdf", specifier = "==6.21.4" },
     { name = "python-docx", specifier = "==1.2.0" },
     { name = "splink", specifier = "==5.0.0" },
+    { name = "uvicorn", specifier = "==0.54.0" },
 ]
 
 [[package]]

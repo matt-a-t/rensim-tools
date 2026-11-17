@@ -15,13 +15,16 @@ dependencies = [
     "dlt[duckdb]==1.31.0",
     "duckdb==1.5.6",
     "mcp==2.3.0",
+    "pyjwt[crypto]==2.15.1",
     "pypdf==6.21.4",
     "python-docx==1.2.0",
     "splink==5.0.0",
+    "uvicorn==0.54.0",
 ]
 
 [project.scripts]
 rensim-mcp = "renaissance.mcp_server:main"
+rensim-hosted = "renaissance.hosted:main"
 
 [tool.setuptools]
 packages = ["renaissance"]

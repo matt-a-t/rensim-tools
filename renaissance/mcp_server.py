@@ -1,5 +1,6 @@
 """The MCP server that is the whole of rensim for a player: Claude Desktop starts it from the
-extension (manifest.json), with the game folder and who they are from the install form.
+extension (manifest.json), with the game folder and who they are from the install form. The hosted
+server (renaissance.hosted) starts one of these for each of its players, the same way.
 
     rensim-mcp                       # stdio server
 
@@ -35,7 +36,7 @@ from mcp_types import ToolAnnotations
 
 from .ask import load_questions
 from .load import connect
-from .settings import BASE, HOME, MY_ACCOUNT, MY_FAMILY, ORDERS_DIR, RAW
+from .settings import BASE, HOME, HOSTED, MY_ACCOUNT, MY_FAMILY, ORDERS_DIR, RAW, SHARED, WHERE_SETTINGS
 
 DBT_MODELS = Path(__file__).resolve().parent / "dbt" / "models"
 CLAIMS_GUIDE = Path(__file__).with_name("claims_extraction.md")
@@ -152,15 +153,16 @@ def status_info() -> dict:
     from .claims import CLAIMS
     from .intake import INBOX
     months = my_turn_months()
-    info = {"game_folder": str(BASE), "account": MY_ACCOUNT, "family": MY_FAMILY, "home": HOME,
+    info = {"game_folder": "(on the server)" if HOSTED else str(BASE),
+            "account": MY_ACCOUNT, "family": MY_FAMILY, "home": HOME,
             "my_turn_results": len(months), "latest_turn": months[-1] if months else None,
-            "all_turn_results": count(RAW / "turns", "*.txt"), "gm_newsletters": count(RAW / "newsletters"),
+            "all_turn_results": count(RAW / "turns", "*.txt"), "shared_with_me": count(SHARED, "*/turns/*.txt"),
+            "gm_newsletters": count(RAW / "newsletters"),
             "player_publications": count(RAW / "player_publications"), "claims_files": count(CLAIMS, "*.json"),
             "orders_saved": count(ORDERS_DIR, "*.txt"), "files_in_inbox": count(INBOX)}
     missing = [f for f, v in (("account code", MY_ACCOUNT), ("family", MY_FAMILY), ("home town", HOME)) if not v]
     if missing:
-        info["next"] = (f"Set the {', '.join(missing)} in Claude's settings: Extensions, Renaissance turns, "
-                        "Configure. Then restart Claude.")
+        info["next"] = f"Set the {', '.join(missing)} {WHERE_SETTINGS}."
     elif not months:
         info["next"] = (f"No turn results for account {MY_ACCOUNT} yet: paste or attach the latest one "
                         "(and any GM newsletters) and it will be saved and loaded.")

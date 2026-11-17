@@ -1,0 +1,8 @@
+{$RENSIM_DOMAIN} {
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy rensim:8000 {
+		flush_interval -1
+	}
+}

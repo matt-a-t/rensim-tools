@@ -18,3 +18,6 @@ build/
 .venv/
 # packed extensions (mcpb pack)
 *.mcpb
+
+# The hosted server's settings (deploy/rensim.env.example is the template)
+deploy/rensim.env

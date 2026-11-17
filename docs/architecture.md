@@ -264,4 +264,8 @@ views away; CI runs `dbt build`, where stopping is the point.
 
 ## Where it's headed
 
+- **On the web** ([hosting.md](hosting.md)): `renaissance/hosted.py` serves many players, each
+  through their own `rensim` process over their own folder. Sharing turn results between players
+  comes next; the folder layout (`data/raw/shared/<account>/`) and loader are ready for it.
+
 - **A signed release** of the extension, so it installs with a double-click.
